@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <meta name="theme-color" content="#f6f5ff">
+  <title>20秒スピードクリック</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body { display: grid; place-items: center; padding: 14px; background: #f6f5ff; color: #20233c; font-family: system-ui, sans-serif; touch-action: manipulation; }
+    main { width: min(100%, 460px); text-align: center; }
+    h1 { margin: 0 0 4px; font-size: clamp(1.35rem, 6vw, 2rem); }
+    .sub { margin: 0 0 14px; color: #777b91; font-size: .9rem; }
+    .stats { display: flex; justify-content: space-between; margin: 0 auto 10px; max-width: 400px; font-size: .95rem; font-weight: 750; }
+    .arena { position: relative; width: min(100%, 400px); aspect-ratio: 1; margin: auto; overflow: hidden; border: 8px solid #dedcf4; border-radius: 20px; background: radial-gradient(circle at 20% 20%, #fff, #f0efff); }
+    #target { position: absolute; display: none; width: 17%; aspect-ratio: 1; border: 4px solid #fff; border-radius: 50%; background: #6557ed; box-shadow: 0 5px 14px #5144c955; transform: translate(-50%, -50%); cursor: pointer; touch-action: manipulation; }
+    #target:active { transform: translate(-50%, -50%) scale(.9); }
+    .actions { margin-top: 14px; }
+    button.action { border: 0; border-radius: 10px; padding: 11px 20px; background: #6557ed; color: white; font: inherit; font-weight: 750; cursor: pointer; }
+    #message { min-height: 1.5em; margin: 12px 0 0; color: #5748d4; font-weight: 750; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>20秒スピードクリック</h1>
+    <p class="sub">ターゲットをタップして記録に挑戦！</p>
+    <div class="stats"><span>スコア: <b id="score">0</b></span><span>残り: <b id="time">20</b>秒</span><span>ベスト: <b id="best">0</b></span></div>
+    <div id="arena" class="arena" aria-label="ゲームエリア">
+      <button id="target" type="button" aria-label="ターゲット"></button>
+    </div>
+    <div class="actions"><button id="start" class="action" type="button">スタート</button></div>
+    <p id="message" aria-live="polite">スタートを押してゲーム開始</p>
+  </main>
+  <script>
+    (() => {
+      const arena = document.getElementById("arena");
+      const target = document.getElementById("target");
+      const scoreElement = document.getElementById("score");
+      const timeElement = document.getElementById("time");
+      const bestElement = document.getElementById("best");
+      const messageElement = document.getElementById("message");
+      const startButton = document.getElementById("start");
+      const storageKey = "vault_speed-clicker_best";
+      let score = 0;
+      let best = Number(localStorage.getItem(storageKey)) || 0;
+      let remaining = 20;
+      let timerId;
+      let playing = false;
+      bestElement.textContent = String(best);
+
+      function placeTarget() {
+        const rect = arena.getBoundingClientRect();
+        const targetRadius = target.getBoundingClientRect().width / 2;
+        const x = targetRadius + Math.random() * (rect.width - targetRadius * 2);
+        const y = targetRadius + Math.random() * (rect.height - targetRadius * 2);
+        target.style.left = `${x / rect.width * 100}%`;
+        target.style.top = `${y / rect.height * 100}%`;
+      }
+
+      function finish() {
+        playing = false;
+        window.clearInterval(timerId);
+        target.style.display = "none";
+        startButton.textContent = "もう一度";
+        if (score > best) {
+          best = score;
+          localStorage.setItem(storageKey, String(best));
+          bestElement.textContent = String(best);
+          messageElement.textContent = `終了！ ${score}点、新記録です！`;
+        } else {
+          messageElement.textContent = `終了！ ${score}点でした。もう一度挑戦しよう！`;
+        }
+      }
+
+      target.addEventListener("click", () => {
+        if (!playing) return;
+        score += 1;
+        scoreElement.textContent = String(score);
+        placeTarget();
+      });
+
+      startButton.addEventListener("click", () => {
+        if (playing) return;
+        window.clearInterval(timerId);
+        score = 0;
+        remaining = 20;
+        playing = true;
+        scoreElement.textContent = "0";
+        timeElement.textContent = String(remaining);
+        messageElement.textContent = "タップ！タップ！";
+        startButton.textContent = "プレイ中";
+        target.style.display = "block";
+        placeTarget();
+        timerId = window.setInterval(() => {
+          remaining -= 1;
+          timeElement.textContent = String(remaining);
+          if (remaining <= 0) finish();
+        }, 1000);
+      });
+
+      window.addEventListener("resize", () => {
+        if (playing) placeTarget();
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getGames } from "../lib/games";
+---
+
+<BaseLayout title="お問い合わせ" description="Webゲーム倉庫へのお問い合わせ窓口のご案内。" gameCount={getGames().length} canonicalPath="/contact">
+  <section class="page-shell py-12">
+    <div class="surface mx-auto max-w-2xl p-7 text-center sm:p-10">
+      <p class="eyebrow">Contact</p>
+      <h1 class="mt-1 text-3xl font-black text-slate-900">お問い合わせ</h1>
+      <p class="mt-5 leading-7 text-slate-600">お問い合わせフォームは現在準備中です。公開までお待ちください。</p>
+      <p class="mt-2 text-sm text-slate-500">フォームの準備ができ次第、このページからご案内します。</p>
+      <a href="/" class="mt-7 inline-flex rounded-xl bg-violet-600 px-5 py-3 font-bold text-white hover:bg-violet-700">トップページへ戻る</a>
+    </div>
+  </section>
+</BaseLayout>

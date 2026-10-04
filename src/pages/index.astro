@@ -1,0 +1,89 @@
+---
+import AdBanner from "../components/AdBanner.astro";
+import GameCard from "../components/GameCard.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getGames } from "../lib/games";
+
+const games = getGames();
+const tags = [...new Set(games.flatMap((game) => game.tags))].sort((a, b) => a.localeCompare(b, "ja"));
+const description = "インストール不要、ブラウザですぐ遊べる無料ミニゲーム集。パズルや脳トレなどのゲームを、スマートフォンでもPCでも楽しめます。";
+---
+
+<BaseLayout title="Webゲーム倉庫" description={description} gameCount={games.length}>
+  <section class="page-shell pt-8 sm:pt-12">
+    <div class="overflow-hidden rounded-3xl bg-gradient-to-br from-violet-700 via-violet-600 to-indigo-500 px-6 py-10 text-white sm:px-10 sm:py-14">
+      <p class="text-sm font-bold text-violet-100">インストール不要・無料で遊べる</p>
+      <h1 class="mt-3 max-w-2xl text-3xl font-black leading-tight sm:text-5xl">ブラウザですぐ遊べる<br class="hidden sm:block" />無料ミニゲーム集</h1>
+      <p class="mt-4 max-w-xl text-sm leading-7 text-violet-100 sm:text-base">ちょっとした空き時間に、パズルやクリックゲームで気軽に遊ぼう。</p>
+      <a href="#games" class="mt-7 inline-flex rounded-xl bg-white px-5 py-3 font-bold text-violet-700 shadow-sm hover:bg-violet-50">ゲームを探す <span aria-hidden="true">↓</span></a>
+    </div>
+    <div class="mt-6"><AdBanner placement="トップページ上部" /></div>
+  </section>
+
+  <section id="games" class="page-shell py-12">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p class="eyebrow">Game library</p>
+        <h2 class="mt-1 text-2xl font-black text-slate-900">ゲーム一覧 <span class="text-base font-semibold text-slate-400">({games.length})</span></h2>
+      </div>
+      <div class="flex flex-wrap gap-2" role="group" aria-label="ジャンルで絞り込む">
+        <button class="tag-filter rounded-full bg-violet-600 px-4 py-2 text-sm font-bold text-white" type="button" data-tag="all" aria-pressed="true">すべて</button>
+        {tags.map((tag) => (
+          <button class="tag-filter rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-violet-300 hover:text-violet-700" type="button" data-tag={tag} aria-pressed="false">{tag}</button>
+        ))}
+      </div>
+    </div>
+
+    {games.length > 0 ? (
+      <div id="game-grid" class="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {games.map((game) => (
+          <div class="game-entry" data-tags={game.tags.join("|")}>
+            <GameCard game={game} />
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p class="surface mt-6 p-8 text-center text-slate-600">ゲームを準備中です。もうしばらくお待ちください。</p>
+    )}
+    <p id="no-games-message" class="mt-6 hidden text-center text-slate-500">このジャンルのゲームはまだありません。</p>
+  </section>
+
+  <section class="page-shell pb-10">
+    <div class="prose-copy surface p-6 sm:p-8">
+      <h2 class="!mt-0">Webゲーム倉庫について</h2>
+      <p>Webゲーム倉庫は、インストールや会員登録をせずに遊べる、短時間で楽しめるブラウザーゲームを集めたポータルです。パズルや脳トレなど、気軽に挑戦できるゲームを順次追加していきます。各ゲームのページには操作方法や遊び方を掲載しています。</p>
+      <p>最新のブラウザーを搭載したスマートフォン、タブレット、パソコンでの利用をおすすめします。ゲームによって画面の向きや操作方法が異なる場合があります。スマートフォンではタッチ操作、パソコンではクリックやキーボード操作で遊べます。</p>
+      <h2 id="disclaimer">免責事項</h2>
+      <p>ゲームの内容や動作は、予告なく変更・終了する場合があります。利用環境や端末によって正常に動作しないことがあります。プレイ中のデータはブラウザー内に保存される場合がありますが、保存を保証するものではありません。</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const filters = document.querySelectorAll<HTMLButtonElement>(".tag-filter");
+  const entries = document.querySelectorAll<HTMLElement>(".game-entry");
+  const emptyMessage = document.querySelector<HTMLElement>("#no-games-message");
+
+  filters.forEach((filter) => {
+    filter.addEventListener("click", () => {
+      const selectedTag = filter.dataset.tag ?? "all";
+      let visibleCount = 0;
+      entries.forEach((entry) => {
+        const visible = selectedTag === "all" || (entry.dataset.tags ?? "").split("|").includes(selectedTag);
+        entry.hidden = !visible;
+        if (visible) visibleCount += 1;
+      });
+      filters.forEach((button) => {
+        const active = button === filter;
+        button.setAttribute("aria-pressed", String(active));
+        button.classList.toggle("bg-violet-600", active);
+        button.classList.toggle("text-white", active);
+        button.classList.toggle("bg-white", !active);
+        button.classList.toggle("border", !active);
+        button.classList.toggle("border-slate-200", !active);
+        button.classList.toggle("text-slate-600", !active);
+      });
+      emptyMessage?.classList.toggle("hidden", visibleCount > 0);
+    });
+  });
+</script>

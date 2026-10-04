@@ -1,0 +1,91 @@
+---
+import AdBanner from "../../components/AdBanner.astro";
+import GameCard from "../../components/GameCard.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getGames } from "../../lib/games";
+
+const games = getGames();
+export function getStaticPaths() {
+  return getGames().map((game) => ({ params: { id: game.id }, props: { game } }));
+}
+
+const { game } = Astro.props;
+const relatedGames = games
+  .filter((candidate) => candidate.id !== game.id)
+  .map((candidate) => ({ game: candidate, overlap: candidate.tags.filter((tag) => game.tags.includes(tag)).length }))
+  .filter((candidate) => candidate.overlap > 0)
+  .sort((left, right) => right.overlap - left.overlap || left.game.id.localeCompare(right.game.id))
+  .slice(0, 3)
+  .map((candidate) => candidate.game);
+const description = `${game.title}の遊び方、コツを紹介。ブラウザーですぐに遊べる無料ゲームです。${game.description}`;
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  name: game.title,
+  description: game.description,
+  genre: game.tags,
+  author: { "@type": "Person", name: game.author },
+  datePublished: game.publishedAt,
+  gamePlatform: "Web browser",
+  applicationCategory: "GameApplication",
+  operatingSystem: "Any",
+  isAccessibleForFree: true,
+  url: Astro.site ? new URL(`/games/${game.id}/`, Astro.site).href : undefined,
+};
+---
+
+<BaseLayout title={game.title} description={description} gameCount={games.length} canonicalPath={`/games/${game.id}`}>
+  <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />
+  <article class="page-shell py-7 sm:py-10">
+    <a href="/#games" class="inline-flex items-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-900"><span aria-hidden="true">←</span> ゲーム一覧に戻る</a>
+    <header class="mt-5 flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p class="eyebrow">{game.tags.join(" · ")}</p>
+        <h1 class="mt-1 text-3xl font-black text-slate-900">{game.title}</h1>
+      </div>
+      <button id="reload-game" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-violet-400 hover:text-violet-700" type="button">↻ ゲームを再読み込み</button>
+    </header>
+
+    <div class="mx-auto mt-6 w-full {game.orientation === 'portrait' ? 'max-w-lg' : 'max-w-4xl'}">
+      <div class="surface overflow-hidden" style={`--game-aspect: ${game.aspectRatio}`}>
+        <iframe
+          id="game-frame"
+          class="game-frame"
+          title={`${game.title} ゲーム画面`}
+          src={`/games/${game.id}/game.html`}
+          allow="fullscreen"
+          loading="eager"
+          referrerpolicy="strict-origin-when-cross-origin"
+        ></iframe>
+      </div>
+    </div>
+    <div class="mx-auto mt-10 max-w-4xl"><AdBanner placement="ゲーム画面下部" /></div>
+
+    <section class="prose-copy surface mx-auto mt-8 max-w-4xl p-6 sm:p-8">
+      <h2 class="!mt-0">ゲームの概要</h2>
+      <p>{game.description}</p>
+      <h2>遊び方</h2>
+      <p>{game.howToPlay}</p>
+      {game.tips && <><h2>攻略のコツ</h2><p>{game.tips}</p></>}
+      <p>操作に反応しない場合は、ゲーム画面を一度タップしてから操作してください。ゲームの記録はこのブラウザー内に保存されます。</p>
+      <p class="text-sm">制作者: {game.author} · 公開日: <time datetime={game.publishedAt}>{game.publishedAt}</time></p>
+    </section>
+
+    {relatedGames.length > 0 && (
+      <section class="mt-12">
+        <h2 class="text-2xl font-black text-slate-900">こちらのゲームもおすすめ</h2>
+        <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {relatedGames.map((relatedGame) => <GameCard game={relatedGame} />)}
+        </div>
+      </section>
+    )}
+  </article>
+</BaseLayout>
+
+<script>
+  const reloadButton = document.querySelector<HTMLButtonElement>("#reload-game");
+  const gameFrame = document.querySelector<HTMLIFrameElement>("#game-frame");
+  reloadButton?.addEventListener("click", () => {
+    if (gameFrame) gameFrame.src = gameFrame.src;
+  });
+</script>
