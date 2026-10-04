@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>もぐらたたき</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body { display: grid; place-items: center; padding: 14px; background: #f6f5ff; color: #20233c; font-family: system-ui, sans-serif; touch-action: manipulation; }
+    main { width: min(100%, 460px); text-align: center; }
+    h1 { margin: 0 0 4px; font-size: clamp(1.35rem, 6vw, 2rem); }
+    .sub { margin: 0 0 14px; color: #777b91; font-size: .9rem; }
+    .stats { display: flex; justify-content: space-between; margin: 0 auto 10px; max-width: 400px; font-size: .95rem; font-weight: 750; }
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(100%, 360px); margin: auto; padding: 10px; border-radius: 18px; background: #d9e8d0; }
+    .hole { aspect-ratio: 1; border: 0; border-radius: 50%; background: #6b4f3a; box-shadow: inset 0 8px 0 #4a3626; font-size: clamp(2rem, 13vw, 3.6rem); line-height: 1; cursor: pointer; touch-action: manipulation; }
+    .hole.up { background: #8c6a4f; }
+    button.action { margin-top: 14px; border: 0; border-radius: 10px; padding: 11px 20px; background: #6557ed; color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+    #message { min-height: 1.5em; margin: 12px 0 0; color: #5748d4; font-weight: 750; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>もぐらたたき</h1>
+    <p class="sub">出てきたもぐらをタップ！</p>
+    <div class="stats"><span>スコア: <b id="score">0</b></span><span>残り: <b id="time">30</b>秒</span><span>ベスト: <b id="best">0</b></span></div>
+    <div id="board" class="board"></div>
+    <button id="start" class="action" type="button">スタート</button>
+    <p id="message" aria-live="polite">スタートを押してゲーム開始</p>
+  </main>
+  <script>
+    (() => {
+      const storageKey = "vault_whack-a-mole_best";
+      const duration = 30;
+      const boardElement = document.getElementById("board");
+      const scoreElement = document.getElementById("score");
+      const timeElement = document.getElementById("time");
+      const bestElement = document.getElementById("best");
+      const messageElement = document.getElementById("message");
+      const startButton = document.getElementById("start");
+      let best = Number(localStorage.getItem(storageKey)) || 0;
+      let score = 0;
+      let remaining = duration;
+      let active = -1;
+      let playing = false;
+      let countdownId;
+      let moleTimer;
+      const holes = [];
+      bestElement.textContent = String(best);
+
+      for (let i = 0; i < 9; i += 1) {
+        const hole = document.createElement("button");
+        hole.type = "button";
+        hole.className = "hole";
+        hole.setAttribute("aria-label", "穴");
+        hole.addEventListener("click", () => hit(i));
+        holes.push(hole);
+        boardElement.append(hole);
+      }
+
+      function hideMole() {
+        if (active >= 0) {
+          holes[active].classList.remove("up");
+          holes[active].textContent = "";
+        }
+        active = -1;
+      }
+
+      function showMole() {
+        hideMole();
+        if (!playing) return;
+        let next;
+        do { next = Math.floor(Math.random() * holes.length); } while (next === active);
+        active = next;
+        holes[next].classList.add("up");
+        holes[next].textContent = "🐹";
+        const elapsed = duration - remaining;
+        const visible = Math.max(450, 900 - elapsed * 14);
+        moleTimer = window.setTimeout(showMole, visible);
+      }
+
+      function hit(index) {
+        if (!playing || index !== active) return;
+        score += 1;
+        scoreElement.textContent = String(score);
+        window.clearTimeout(moleTimer);
+        showMole();
+      }
+
+      function finish() {
+        playing = false;
+        window.clearInterval(countdownId);
+        window.clearTimeout(moleTimer);
+        hideMole();
+        startButton.disabled = false;
+        startButton.textContent = "もう一度";
+        if (score > best) {
+          best = score;
+          localStorage.setItem(storageKey, String(best));
+          bestElement.textContent = String(best);
+          messageElement.textContent = `終了！ ${score}匹、新記録です！`;
+        } else {
+          messageElement.textContent = `終了！ ${score}匹たたきました。`;
+        }
+      }
+
+      startButton.addEventListener("click", () => {
+        if (playing) return;
+        score = 0;
+        remaining = duration;
+        playing = true;
+        scoreElement.textContent = "0";
+        timeElement.textContent = String(remaining);
+        messageElement.textContent = "たたけ！";
+        startButton.disabled = true;
+        startButton.textContent = "プレイ中";
+        showMole();
+        countdownId = window.setInterval(() => {
+          remaining -= 1;
+          timeElement.textContent = String(remaining);
+          if (remaining <= 0) finish();
+        }, 1000);
+      });
+    })();
+  </script>
+</body>
+</html>

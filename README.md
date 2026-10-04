@@ -22,6 +22,16 @@ Cloudflare Pagesではビルドコマンドに `npm run build`、出力ディレ
 
 Astroが `/games/<slug>/` の説明ページを `dist/games/<slug>/index.html` に生成するため、ゲーム本体は同じ出力先で衝突しないよう `game.html` としています。iframeには `allow="fullscreen"` のみを付与し、追加権限はゲームが必要とする場合に限り検討します。
 
+### 自作ゲームを追加する場合
+
+1. `public/games/<好きな英数字のスラッグ>/` フォルダーを作ります（小文字英数字とハイフンのみ）。
+2. ゲームを1つのHTMLファイルにまとめ、`game.html` として置きます。CSS・JavaScriptはHTML内に記述し、画像は `<img>` のデータURIかCSS・Canvas描画で表現するとファイルが1つで済みます。複数ファイルになる場合は同じフォルダーに置き、`game.html` から相対パスで参照します。
+3. 同じフォルダーに `game.json` を作り、既存のゲームをコピーして内容を書き換えます。
+4. サムネイル（400×300程度）を `thumbnail.png` として置く場合は、`game.json` に `"thumbnail": "/games/<スラッグ>/thumbnail.png"` を追加します。
+5. `npm run dev` で表示を確認し、`npm run build` を通してからコミット・pushします。Cloudflareが自動でデプロイします。
+
+Phaserなどのライブラリを使う場合はCDNの信頼できる配信元のみを利用し、スマートフォンでの画面拡縮・タッチ座標（`getBoundingClientRect()` 経由）を確認してください。
+
 各ゲームのlocalStorageキーは `vault_<slug>_best` を使用します。ゲームは自サイト内で管理する信頼済みコードのみ掲載してください。
 
 ## 広告と問い合わせ

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>〇×ゲーム（対CPU）</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body { display: grid; place-items: center; padding: 14px; background: #f6f5ff; color: #20233c; font-family: system-ui, sans-serif; touch-action: manipulation; }
+    main { width: min(100%, 460px); text-align: center; }
+    h1 { margin: 0 0 4px; font-size: clamp(1.35rem, 6vw, 2rem); }
+    .sub { margin: 0 0 14px; color: #777b91; font-size: .9rem; }
+    .stats { display: flex; justify-content: space-between; margin: 0 auto 10px; max-width: 400px; font-size: .95rem; font-weight: 700; }
+    .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: min(100%, 360px); aspect-ratio: 1; margin: auto; padding: 8px; border-radius: 18px; background: #dedcf4; }
+    .cell { border: 0; border-radius: 12px; background: #fff; font-size: clamp(2.2rem, 14vw, 4rem); font-weight: 850; cursor: pointer; box-shadow: 0 3px 0 #c8c5e4; touch-action: manipulation; }
+    .cell.o { color: #5345d5; } .cell.x { color: #e5532d; }
+    .cell.win { background: #e6f7ec; }
+    button.action { margin-top: 14px; border: 0; border-radius: 10px; padding: 11px 20px; background: #6557ed; color: #fff; font: inherit; font-weight: 750; cursor: pointer; }
+    #message { min-height: 1.5em; margin: 12px 0 0; color: #5748d4; font-weight: 750; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>〇×ゲーム（対CPU）</h1>
+    <p class="sub">あなたは〇。3つ並べたら勝ち！</p>
+    <div class="stats"><span>連勝: <b id="streak">0</b></span><span>最高連勝: <b id="best">0</b></span></div>
+    <div id="board" class="board" role="group" aria-label="〇×ゲーム盤面"></div>
+    <button id="restart" class="action" type="button">もう一度</button>
+    <p id="message" aria-live="polite"></p>
+  </main>
+  <script>
+    (() => {
+      const lines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+      const storageKey = "vault_tic-tac-toe_best";
+      const boardElement = document.getElementById("board");
+      const streakElement = document.getElementById("streak");
+      const bestElement = document.getElementById("best");
+      const messageElement = document.getElementById("message");
+      let board = [];
+      let streak = 0;
+      let best = Number(localStorage.getItem(storageKey)) || 0;
+      let finished = false;
+      let cpuTimer;
+
+      function winner(state) {
+        for (const line of lines) {
+          const [a, b, c] = line;
+          if (state[a] && state[a] === state[b] && state[a] === state[c]) return { player: state[a], line };
+        }
+        return null;
+      }
+
+      function minimax(state, player) {
+        const result = winner(state);
+        if (result) return result.player === "x" ? 1 : -1;
+        if (state.every(Boolean)) return 0;
+        const scores = [];
+        state.forEach((cell, index) => {
+          if (cell) return;
+          state[index] = player;
+          scores.push(minimax(state, player === "x" ? "o" : "x"));
+          state[index] = "";
+        });
+        return player === "x" ? Math.max(...scores) : Math.min(...scores);
+      }
+
+      function cpuMove() {
+        const free = board.map((cell, index) => (cell ? -1 : index)).filter((index) => index >= 0);
+        if (Math.random() < 0.3) return free[Math.floor(Math.random() * free.length)];
+        let bestScore = -Infinity;
+        let bestMoves = [];
+        for (const index of free) {
+          board[index] = "x";
+          const score = minimax(board, "o");
+          board[index] = "";
+          if (score > bestScore) { bestScore = score; bestMoves = [index]; }
+          else if (score === bestScore) bestMoves.push(index);
+        }
+        return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+      }
+
+      function render(winLine = []) {
+        boardElement.replaceChildren();
+        board.forEach((value, index) => {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = `cell ${value} ${winLine.includes(index) ? "win" : ""}`;
+          cell.textContent = value === "o" ? "〇" : value === "x" ? "×" : "";
+          cell.setAttribute("aria-label", value === "o" ? "〇" : value === "x" ? "×" : "空きマス");
+          cell.disabled = Boolean(value) || finished;
+          cell.addEventListener("click", () => play(index));
+          boardElement.append(cell);
+        });
+        streakElement.textContent = String(streak);
+        bestElement.textContent = String(best);
+      }
+
+      function conclude() {
+        const result = winner(board);
+        if (!result && !board.every(Boolean)) return false;
+        finished = true;
+        if (result?.player === "o") {
+          streak += 1;
+          if (streak > best) {
+            best = streak;
+            localStorage.setItem(storageKey, String(best));
+          }
+          messageElement.textContent = "あなたの勝ちです！";
+        } else if (result) {
+          streak = 0;
+          messageElement.textContent = "CPUの勝ちです。もう一度挑戦しよう！";
+        } else {
+          messageElement.textContent = "引き分けです。";
+        }
+        render(result ? result.line : []);
+        return true;
+      }
+
+      function play(index) {
+        if (finished || board[index]) return;
+        board[index] = "o";
+        if (conclude()) return;
+        render();
+        finished = true;
+        cpuTimer = window.setTimeout(() => {
+          finished = false;
+          board[cpuMove()] = "x";
+          if (!conclude()) render();
+        }, 350);
+      }
+
+      function start() {
+        window.clearTimeout(cpuTimer);
+        board = Array(9).fill("");
+        finished = false;
+        messageElement.textContent = "";
+        render();
+      }
+
+      document.getElementById("restart").addEventListener("click", start);
+      start();
+    })();
+  </script>
+</body>
+</html>

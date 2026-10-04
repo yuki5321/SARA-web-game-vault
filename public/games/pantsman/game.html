@@ -1,0 +1,4116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>走れ！パンツマン - THE HERO 完全版</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.80.1/phaser.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      touch-action: none;
+    }
+    body {
+      background: radial-gradient(circle at center, #1e293b 0%, #060911 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Segoe UI', sans-serif;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      max-width: 400px;
+      max-height: 600px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.95), 0 0 35px rgba(56, 189, 248, 0.25), inset 0 0 2px rgba(255,255,255,0.2);
+      border-radius: 14px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      overflow: hidden;
+      background-color: #090e17;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+<div id="game-container"></div>
+
+<script>
+// ===================================================================
+// サウンドエンジン (Web Audio API: ステージBGM, 恐怖ボスBGM, 凱旋エンディング)
+// ===================================================================
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.isMuted = false;
+    this.bgmTimer = null;
+    this.bgmStep = 0;
+    this.currentBgmType = null;
+    this.currentBgmSpeed = 200;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleMute() {
+    this.isMuted = !this.isMuted;
+    if (this.isMuted) {
+      this.stopBGM();
+    } else {
+      if (this.currentBgmType) {
+        this.playBGM(this.currentBgmType, this.currentBgmSpeed);
+      }
+    }
+    return this.isMuted;
+  }
+
+  playBGM(type, customSpeed = null) {
+    this.currentBgmType = type;
+    this.stopBGM();
+    if (this.isMuted || !this.ctx) return;
+
+    let notes = [];
+    let speed = 200;
+    let waveType = 'triangle';
+    let baseVol = 0.08;
+
+    if (type === 'stage1') {
+      notes = [130.8, 164.8, 196.0, 164.8, 146.8, 174.6, 220.0, 196.0, 130.8, 196.0, 164.8, 130.8, 146.8, 174.6, 196.0, 220.0];
+      speed = 190;
+      waveType = 'triangle';
+      baseVol = 0.08;
+    } else if (type === 'stage2') {
+      notes = [164.8, 196.0, 246.9, 196.0, 220.0, 261.6, 329.6, 261.6, 164.8, 220.0, 196.0, 146.8, 174.6, 220.0, 196.0, 164.8];
+      speed = 150;
+      waveType = 'sawtooth';
+      baseVol = 0.06;
+    } else if (type === 'stage3') {
+      notes = [82.4, 0, 82.4, 98.0, 73.4, 0, 73.4, 110.0, 82.4, 87.3, 82.4, 0, 65.4, 0, 73.4, 82.4];
+      speed = 170;
+      waveType = 'sawtooth';
+      baseVol = 0.09;
+    } else if (type === 'boss') {
+      notes = [65.4, 69.3, 73.4, 69.3, 65.4, 77.8, 73.4, 61.7, 65.4, 92.5, 87.3, 82.4, 65.4, 69.3, 73.4, 61.7];
+      speed = 145;
+      waveType = 'sawtooth';
+      baseVol = 0.11;
+    } else if (type === 'boss_rage') {
+      notes = [73.4, 87.3, 110.0, 87.3, 73.4, 98.0, 87.3, 65.4, 73.4, 116.5, 110.0, 98.0, 73.4, 87.3, 98.0, 65.4];
+      speed = 110;
+      waveType = 'sawtooth';
+      baseVol = 0.12;
+    } else if (type === 'ending') {
+      // 凱旋祝勝ファンファーレ
+      notes = [261.6, 329.6, 392.0, 523.3, 392.0, 523.3, 659.3, 523.3, 440.0, 523.3, 659.3, 523.3, 392.0, 329.6, 293.7, 261.6];
+      speed = 180;
+      waveType = 'triangle';
+      baseVol = 0.10;
+    }
+
+    if (customSpeed) speed = customSpeed;
+    this.currentBgmSpeed = speed;
+
+    this.bgmStep = 0;
+    this.bgmTimer = setInterval(() => {
+      if (this.isMuted || !this.ctx) return;
+      const freq = notes[this.bgmStep % notes.length];
+      this.bgmStep++;
+      if (freq > 0) {
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = waveType;
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(baseVol, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (speed / 1000) * 0.9);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + (speed / 1000) * 0.9);
+        } catch(e) {}
+      }
+    }, speed);
+  }
+
+  stopBGM() {
+    if (this.bgmTimer) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+  }
+
+  playSnap() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(620, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } catch(e) {}
+  }
+
+  playAllySnap() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.09);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.09);
+    } catch(e) {}
+  }
+
+  playChargeShot() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(950, now + 0.16);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.38);
+      gain.gain.setValueAtTime(0.45, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.38);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.38);
+    } catch(e) {}
+  }
+
+  playCharging() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.linearRampToValueAtTime(880, now + 0.7);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.7);
+    } catch(e) {}
+  }
+
+  playBomb() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const dur = 1.2;
+      const bufferSize = this.ctx.sampleRate * dur;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.35));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, now);
+      filter.frequency.exponentialRampToValueAtTime(100, now + dur);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.8, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch(e) {}
+  }
+
+  playCape() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const bufferSize = this.ctx.sampleRate * 0.16;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.sin(Math.PI * (i / bufferSize));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(500, now);
+      filter.frequency.exponentialRampToValueAtTime(140, now + 0.16);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.4, now);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch(e) {}
+  }
+
+  playReflect() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [1200, 2400, 3600].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.8, now + 0.26);
+        gain.gain.setValueAtTime(0.32 / (idx + 1), now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.28);
+      });
+    } catch(e) {}
+  }
+
+  playPowerUp() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const notes = [329.6, 392.0, 493.9, 659.3, 987.8];
+      const now = this.ctx.currentTime;
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+        gain.gain.setValueAtTime(0.24, now + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.05);
+        osc.stop(now + idx * 0.05 + 0.18);
+      });
+    } catch(e) {}
+  }
+
+  playHeal() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const notes = [440, 554.3, 659.3, 880];
+      const now = this.ctx.currentTime;
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+        gain.gain.setValueAtTime(0.22, now + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.06);
+        osc.stop(now + idx * 0.06 + 0.2);
+      });
+    } catch(e) {}
+  }
+
+  playLaser() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(650, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.13);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.13);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.13);
+    } catch(e) {}
+  }
+
+  playDirtyBeam() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.linearRampToValueAtTime(65, now + 0.45);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    } catch(e) {}
+  }
+
+  playBoom(isBoss = false) {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const dur = isBoss ? 0.7 : 0.24;
+      const bufferSize = this.ctx.sampleRate * dur;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * (isBoss ? 0.2 : 0.08)));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(isBoss ? 0.6 : 0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+      noise.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch(e) {}
+  }
+
+  playHurt() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.linearRampToValueAtTime(60, now + 0.2);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } catch(e) {}
+  }
+
+  playWarning() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(640, now + 0.25);
+      osc.frequency.linearRampToValueAtTime(320, now + 0.5);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.55);
+    } catch(e) {}
+  }
+
+  // 大迫力の水洗トイレ流水音（ホワイトノイズ＋帯域スイープ）
+  playFlush() {
+    if (this.isMuted || !this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const dur = 2.4;
+      const bufferSize = this.ctx.sampleRate * dur;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1);
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1600, now);
+      filter.frequency.exponentialRampToValueAtTime(150, now + dur);
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.85, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      noise.start(now);
+    } catch(e) {}
+  }
+}
+
+const soundManager = new SoundEngine();
+
+// ===================================================================
+// グラフィックテクスチャ生成（Canvas動的レンダリング・高品位版）
+// ===================================================================
+function generateTextures(scene) {
+  // 0. シネマティック・ビネット
+  if (!scene.textures.exists('vignette')) {
+    const c = scene.textures.createCanvas('vignette', 400, 600);
+    const ctx = c.getContext();
+    const grad = ctx.createRadialGradient(200, 300, 140, 200, 300, 320);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.7, 'rgba(3,7,18,0.2)');
+    grad.addColorStop(1, 'rgba(2,6,15,0.7)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 400, 600);
+    c.refresh();
+  }
+
+  // 0-B. 画面遷移集中線（スピードライン）
+  if (!scene.textures.exists('speedlines')) {
+    const c = scene.textures.createCanvas('speedlines', 400, 600);
+    const ctx = c.getContext();
+    ctx.strokeStyle = 'rgba(250, 204, 21, 0.25)';
+    ctx.lineWidth = 1.5;
+    const cx = 200;
+    const cy = 300;
+    for (let i = 0; i < 36; i++) {
+      const angle = (i / 36) * Math.PI * 2;
+      const r1 = 120 + Math.random() * 40;
+      const r2 = 380;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(angle) * r1, cy + Math.sin(angle) * r1);
+      ctx.lineTo(cx + Math.cos(angle) * r2, cy + Math.sin(angle) * r2);
+      ctx.stroke();
+    }
+    c.refresh();
+  }
+
+  // 0-C. エンディング背景（朝焼け青空の学校）
+  if (!scene.textures.exists('bg_ending')) {
+    const c = scene.textures.createCanvas('bg_ending', 400, 600);
+    const ctx = c.getContext();
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 420);
+    skyGrad.addColorStop(0, '#0284c7');
+    skyGrad.addColorStop(0.5, '#38bdf8');
+    skyGrad.addColorStop(0.85, '#bae6fd');
+    skyGrad.addColorStop(1, '#fed7aa');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, 400, 420);
+
+    // 太陽の光彩
+    const sunGrad = ctx.createRadialGradient(320, 100, 10, 320, 100, 80);
+    sunGrad.addColorStop(0, '#ffffff');
+    sunGrad.addColorStop(0.4, '#fef08a');
+    sunGrad.addColorStop(1, 'rgba(254, 240, 138, 0)');
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(320, 100, 80, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 白い雲
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.beginPath();
+    ctx.arc(80, 120, 30, 0, Math.PI * 2);
+    ctx.arc(115, 110, 40, 0, Math.PI * 2);
+    ctx.arc(150, 125, 28, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 学校校舎のシルエット
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(30, 260, 340, 160);
+    // 時計塔
+    ctx.fillRect(170, 210, 60, 50);
+    ctx.beginPath();
+    ctx.moveTo(160, 210);
+    ctx.lineTo(200, 175);
+    ctx.lineTo(240, 210);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(200, 235, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(199, 226, 2, 9);
+    ctx.fillRect(200, 234, 7, 2);
+
+    // 校庭の芝生＆朝礼台
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(0, 420, 400, 180);
+    // 朝礼台
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(100, 440, 200, 50);
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(100, 440, 200, 50);
+    // 階段
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(80, 465, 20, 25);
+    ctx.fillRect(300, 465, 20, 25);
+
+    c.refresh();
+  }
+
+  // 0-D. 紙吹雪（トイレットペーパーの花吹雪）
+  if (!scene.textures.exists('confetti_paper')) {
+    const c = scene.textures.createCanvas('confetti_paper', 14, 18);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(1, 1, 12, 16);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(1, 1, 12, 16);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillRect(3, 4, 8, 2);
+    ctx.fillRect(3, 8, 8, 2);
+    c.refresh();
+  }
+
+  // 1. パンツマン（校長先生：高品位グラデーション＆ヒーロー装飾）
+  if (!scene.textures.exists('pantsman')) {
+    const c = scene.textures.createCanvas('pantsman', 64, 76);
+    const ctx = c.getContext();
+
+    const capeGrad = ctx.createLinearGradient(0, 26, 0, 72);
+    capeGrad.addColorStop(0, '#ef4444');
+    capeGrad.addColorStop(0.5, '#dc2626');
+    capeGrad.addColorStop(1, '#991b1b');
+    ctx.fillStyle = capeGrad;
+    ctx.beginPath();
+    ctx.moveTo(18, 28);
+    ctx.lineTo(2, 72);
+    ctx.quadraticCurveTo(18, 68, 32, 72);
+    ctx.quadraticCurveTo(46, 68, 62, 72);
+    ctx.lineTo(46, 28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#7f1d1d';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.arc(32, 28, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    const skinGrad = ctx.createLinearGradient(0, 24, 0, 52);
+    skinGrad.addColorStop(0, '#fed7aa');
+    skinGrad.addColorStop(1, '#fdba74');
+    ctx.fillStyle = skinGrad;
+    ctx.fillRect(20, 26, 24, 24);
+    ctx.fillRect(10, 28, 10, 20);
+    ctx.fillRect(44, 28, 10, 20);
+    ctx.fillRect(20, 56, 9, 14);
+    ctx.fillRect(35, 56, 9, 14);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(18, 67, 12, 5);
+    ctx.fillRect(34, 67, 12, 5);
+
+    const briefGrad = ctx.createLinearGradient(0, 38, 0, 60);
+    briefGrad.addColorStop(0, '#ffffff');
+    briefGrad.addColorStop(0.8, '#f1f5f9');
+    briefGrad.addColorStop(1, '#cbd5e1');
+    ctx.fillStyle = briefGrad;
+    ctx.beginPath();
+    ctx.moveTo(16, 40);
+    ctx.lineTo(48, 40);
+    ctx.lineTo(44, 60);
+    ctx.lineTo(35, 60);
+    ctx.lineTo(32, 53);
+    ctx.lineTo(29, 60);
+    ctx.lineTo(20, 60);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#334155';
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(17, 42);
+    ctx.lineTo(47, 42);
+    ctx.stroke();
+    ctx.strokeStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.moveTo(17, 45);
+    ctx.lineTo(47, 45);
+    ctx.stroke();
+
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(28, 39, 8, 8);
+    ctx.strokeStyle = '#b45309';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(28, 39, 8, 8);
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 7px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('P', 32, 43);
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(32, 18, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(17, 13, 4, 9);
+    ctx.fillRect(43, 13, 4, 9);
+    ctx.fillRect(23, 5, 18, 3);
+
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(22, 13, 9, 7);
+    ctx.strokeRect(33, 13, 9, 7);
+    ctx.beginPath();
+    ctx.moveTo(31, 16);
+    ctx.lineTo(33, 16);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(24, 18);
+    ctx.lineTo(29, 14);
+    ctx.moveTo(35, 18);
+    ctx.lineTo(40, 14);
+    ctx.stroke();
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(26, 16, 2, 2);
+    ctx.fillRect(36, 16, 2, 2);
+
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(27, 23, 10, 3);
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.arc(32, 27, 3.5, 0, Math.PI);
+    ctx.fill();
+
+    c.refresh();
+  }
+
+  // 1-B. 仲間：教頭先生
+  if (!scene.textures.exists('ally_pantsman')) {
+    const c = scene.textures.createCanvas('ally_pantsman', 44, 52);
+    const ctx = c.getContext();
+
+    const capeGrad = ctx.createLinearGradient(0, 16, 0, 48);
+    capeGrad.addColorStop(0, '#10b981');
+    capeGrad.addColorStop(1, '#047857');
+    ctx.fillStyle = capeGrad;
+    ctx.beginPath();
+    ctx.moveTo(12, 18);
+    ctx.lineTo(2, 48);
+    ctx.quadraticCurveTo(22, 45, 42, 48);
+    ctx.lineTo(32, 18);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.fillRect(14, 16, 16, 18);
+    ctx.fillRect(14, 38, 6, 9);
+    ctx.fillRect(24, 38, 6, 9);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(11, 26);
+    ctx.lineTo(33, 26);
+    ctx.lineTo(29, 40);
+    ctx.lineTo(15, 40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#059669';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(22, 11, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = '#0284c7';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(15, 8, 6, 5);
+    ctx.strokeRect(23, 8, 6, 5);
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(18, 10, 1.5, 1.5);
+    ctx.fillRect(26, 10, 1.5, 1.5);
+
+    c.refresh();
+  }
+
+  // ステージ1: 校長室
+  if (!scene.textures.exists('bg_stage1')) {
+    const c = scene.textures.createCanvas('bg_stage1', 400, 600);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#1c100b';
+    ctx.fillRect(0, 0, 400, 600);
+
+    const shelfGrad = ctx.createLinearGradient(0, 0, 400, 0);
+    shelfGrad.addColorStop(0, '#2e180d');
+    shelfGrad.addColorStop(0.5, '#452414');
+    shelfGrad.addColorStop(1, '#2e180d');
+    ctx.fillStyle = shelfGrad;
+    ctx.fillRect(15, 0, 370, 245);
+
+    ctx.strokeStyle = '#6c3b1e';
+    ctx.lineWidth = 3;
+    for (let y = 42; y < 245; y += 46) {
+      ctx.strokeRect(15, y, 370, 4);
+    }
+    const bookColors = ['#991b1b', '#1e40af', '#166534', '#854d0e', '#374151', '#7c2d12'];
+    for (let x = 25; x < 365; x += 13) {
+      ctx.fillStyle = bookColors[(x * 11) % bookColors.length];
+      ctx.fillRect(x, 50, 10, 32);
+      ctx.fillRect(x, 96, 10, 32);
+      ctx.fillRect(x, 142, 10, 32);
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(x + 2, 56, 6, 1.5);
+      ctx.fillRect(x + 2, 102, 6, 1.5);
+      ctx.fillRect(x + 2, 148, 6, 1.5);
+    }
+
+    const spotGrad = ctx.createRadialGradient(200, 290, 20, 200, 290, 100);
+    spotGrad.addColorStop(0, 'rgba(250, 204, 21, 0.15)');
+    spotGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = spotGrad;
+    ctx.fillRect(80, 230, 240, 110);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(115, 255, 170, 70);
+    ctx.strokeStyle = '#eab308';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(115, 255, 170, 70);
+    ctx.strokeStyle = '#ca8a04';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(118, 258, 164, 64);
+    ctx.fillStyle = '#facc15';
+    ctx.font = 'bold 20px "Hiragino Kaku Gothic ProN", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('威 風 堂 々', 200, 299);
+
+    const carpetGrad = ctx.createLinearGradient(0, 340, 0, 600);
+    carpetGrad.addColorStop(0, '#3f0808');
+    carpetGrad.addColorStop(1, '#5a0d0d');
+    ctx.fillStyle = carpetGrad;
+    ctx.fillRect(0, 340, 400, 260);
+    ctx.strokeStyle = '#881337';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 400; i += 32) {
+      ctx.strokeRect(i, 340, 32, 260);
+      ctx.strokeRect(i + 8, 350, 16, 240);
+    }
+    c.refresh();
+  }
+
+  // ステージ2: 屋上
+  if (!scene.textures.exists('bg_stage2')) {
+    const c = scene.textures.createCanvas('bg_stage2', 400, 600);
+    const ctx = c.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, 460);
+    grad.addColorStop(0, '#2e1065');
+    grad.addColorStop(0.3, '#6b21a8');
+    grad.addColorStop(0.55, '#c2410c');
+    grad.addColorStop(0.85, '#ea580c');
+    grad.addColorStop(1, '#f97316');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 400, 460);
+
+    const sunGlow = ctx.createRadialGradient(200, 280, 20, 200, 280, 80);
+    sunGlow.addColorStop(0, '#fffbeb');
+    sunGlow.addColorStop(0.4, '#fed7aa');
+    sunGlow.addColorStop(1, 'rgba(251, 146, 60, 0)');
+    ctx.fillStyle = sunGlow;
+    ctx.beginPath();
+    ctx.arc(200, 280, 80, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#18131d';
+    const buildings = [
+      { x: 0, w: 45, h: 130 }, { x: 40, w: 55, h: 170 }, { x: 90, w: 40, h: 110 },
+      { x: 125, w: 60, h: 200 }, { x: 180, w: 50, h: 150 }, { x: 225, w: 70, h: 190 },
+      { x: 290, w: 45, h: 120 }, { x: 330, w: 75, h: 180 }
+    ];
+    buildings.forEach(b => {
+      ctx.fillRect(b.x, 460 - b.h, b.w, b.h);
+      ctx.fillStyle = '#fef08a';
+      for (let wy = 460 - b.h + 12; wy < 450; wy += 22) {
+        ctx.fillRect(b.x + 8, wy, 4, 6);
+        ctx.fillRect(b.x + b.w - 12, wy, 4, 6);
+      }
+      ctx.fillStyle = '#18131d';
+    });
+
+    ctx.fillStyle = '#262227';
+    ctx.fillRect(0, 460, 400, 140);
+
+    ctx.strokeStyle = 'rgba(168, 162, 158, 0.7)';
+    ctx.lineWidth = 1;
+    for (let x = -60; x < 460; x += 14) {
+      ctx.beginPath();
+      ctx.moveTo(x, 320);
+      ctx.lineTo(x + 70, 460);
+      ctx.moveTo(x + 70, 320);
+      ctx.lineTo(x, 460);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#78716c';
+    ctx.strokeRect(0, 320, 400, 140);
+    c.refresh();
+  }
+
+  // ステージ3: 地下下水道
+  if (!scene.textures.exists('bg_stage3')) {
+    const c = scene.textures.createCanvas('bg_stage3', 400, 600);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#022119';
+    ctx.fillRect(0, 0, 400, 600);
+
+    ctx.strokeStyle = '#064e3b';
+    ctx.lineWidth = 2;
+    for (let y = 0; y < 450; y += 22) {
+      const offset = (y % 44 === 0) ? 0 : 25;
+      for (let x = -25; x < 425; x += 50) {
+        ctx.strokeRect(x + offset, y, 50, 22);
+      }
+    }
+
+    const pipeGrad = ctx.createLinearGradient(0, 0, 400, 0);
+    pipeGrad.addColorStop(0, '#572b0c');
+    pipeGrad.addColorStop(0.1, '#854d0e');
+    pipeGrad.addColorStop(0.15, '#451a03');
+    pipeGrad.addColorStop(0.85, '#451a03');
+    pipeGrad.addColorStop(0.9, '#854d0e');
+    pipeGrad.addColorStop(1, '#572b0c');
+
+    ctx.fillStyle = pipeGrad;
+    ctx.fillRect(10, 0, 42, 450);
+    ctx.fillRect(348, 0, 42, 450);
+    ctx.strokeStyle = '#381604';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(10, 0, 42, 450);
+    ctx.strokeRect(348, 0, 42, 450);
+
+    for (let py = 30; py < 450; py += 70) {
+      ctx.fillStyle = '#92400e';
+      ctx.fillRect(6, py, 50, 14);
+      ctx.fillRect(344, py, 50, 14);
+      ctx.strokeStyle = '#451a03';
+      ctx.strokeRect(6, py, 50, 14);
+      ctx.strokeRect(344, py, 50, 14);
+    }
+
+    const slimeGrad = ctx.createLinearGradient(0, 450, 0, 600);
+    slimeGrad.addColorStop(0, '#064e3b');
+    slimeGrad.addColorStop(0.4, '#14532d');
+    slimeGrad.addColorStop(1, '#052e16');
+    ctx.fillStyle = slimeGrad;
+    ctx.fillRect(0, 450, 400, 150);
+
+    ctx.fillStyle = '#84cc16';
+    ctx.beginPath();
+    ctx.ellipse(100, 470, 40, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(260, 480, 50, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(180, 520, 35, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    c.refresh();
+  }
+
+  // 2. 弾薬類
+  if (!scene.textures.exists('bullet_pants')) {
+    const c = scene.textures.createCanvas('bullet_pants', 28, 22);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(3, 4);
+    ctx.lineTo(25, 4);
+    ctx.lineTo(20, 18);
+    ctx.lineTo(16, 18);
+    ctx.lineTo(14, 14);
+    ctx.lineTo(12, 18);
+    ctx.lineTo(8, 18);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#e11d48';
+    ctx.stroke();
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(4, 7);
+    ctx.lineTo(24, 7);
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('bullet_ally')) {
+    const c = scene.textures.createCanvas('bullet_ally', 22, 18);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(2, 3);
+    ctx.lineTo(20, 3);
+    ctx.lineTo(16, 15);
+    ctx.lineTo(6, 15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('bullet_ally_mega')) {
+    const c = scene.textures.createCanvas('bullet_ally_mega', 40, 32);
+    const ctx = c.getContext();
+    const grad = ctx.createRadialGradient(20, 16, 4, 20, 16, 18);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.5, '#a7f3d0');
+    grad.addColorStop(1, '#059669');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(20, 16, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(5, 7);
+    ctx.lineTo(35, 7);
+    ctx.lineTo(29, 25);
+    ctx.lineTo(11, 25);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#047857';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('bullet_giga')) {
+    const c = scene.textures.createCanvas('bullet_giga', 58, 46);
+    const ctx = c.getContext();
+    const grad = ctx.createRadialGradient(29, 23, 6, 29, 23, 24);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.4, '#fef08a');
+    grad.addColorStop(0.8, '#eab308');
+    grad.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(29, 23, 23, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(7, 11);
+    ctx.lineTo(51, 11);
+    ctx.lineTo(43, 37);
+    ctx.lineTo(35, 37);
+    ctx.lineTo(29, 28);
+    ctx.lineTo(23, 37);
+    ctx.lineTo(15, 37);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#eab308';
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(29, 13);
+    ctx.lineTo(25, 21);
+    ctx.lineTo(31, 21);
+    ctx.lineTo(27, 30);
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('bullet_darkpants')) {
+    const c = scene.textures.createCanvas('bullet_darkpants', 26, 20);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.moveTo(2, 4);
+    ctx.lineTo(24, 4);
+    ctx.lineTo(19, 17);
+    ctx.lineTo(7, 17);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ef4444';
+    ctx.stroke();
+    c.refresh();
+  }
+
+  // 3. アイテム類
+  if (!scene.textures.exists('item_ppants')) {
+    const c = scene.textures.createCanvas('item_ppants', 38, 34);
+    const ctx = c.getContext();
+    const halo = ctx.createRadialGradient(19, 17, 6, 19, 17, 18);
+    halo.addColorStop(0, '#fef08a');
+    halo.addColorStop(0.7, '#eab308');
+    halo.addColorStop(1, 'rgba(234, 179, 8, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(19, 17, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(6, 9);
+    ctx.lineTo(32, 9);
+    ctx.lineTo(27, 26);
+    ctx.lineTo(22, 26);
+    ctx.lineTo(19, 20);
+    ctx.lineTo(16, 26);
+    ctx.lineTo(11, 26);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#eab308';
+    ctx.stroke();
+
+    ctx.fillStyle = '#dc2626';
+    ctx.font = 'bold 15px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('P', 19, 16);
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('item_paper')) {
+    const c = scene.textures.createCanvas('item_paper', 34, 34);
+    const ctx = c.getContext();
+    const halo = ctx.createRadialGradient(17, 17, 6, 17, 17, 16);
+    halo.addColorStop(0, '#dcfce7');
+    halo.addColorStop(1, 'rgba(34, 197, 94, 0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(17, 17, 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(9, 10, 16, 15);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(9, 10, 16, 15);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.ellipse(17, 10, 5, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#16a34a';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('♥', 17, 18);
+    c.refresh();
+  }
+
+  // 4. おじさん軍団
+  if (!scene.textures.exists('ojisan_normal')) {
+    const c = scene.textures.createCanvas('ojisan_normal', 40, 46);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(12, 21, 16, 17);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(19, 23, 2, 9);
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(20, 13, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(11, 5);
+    ctx.lineTo(27, 5);
+    ctx.stroke();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(15, 12, 3, 2);
+    ctx.fillRect(22, 12, 3, 2);
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(6, 28, 7, 6);
+    ctx.fillRect(27, 28, 7, 6);
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('ojisan_steteko')) {
+    const c = scene.textures.createCanvas('ojisan_steteko', 40, 46);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(12, 19, 16, 12);
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(12, 31, 16, 12);
+    ctx.strokeStyle = '#0284c7';
+    ctx.strokeRect(12, 31, 16, 12);
+    ctx.fillStyle = '#fcd34d';
+    ctx.beginPath();
+    ctx.arc(20, 11, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(18, 14, 4, 2);
+    ctx.fillRect(14, 10, 2, 2);
+    ctx.fillRect(24, 10, 2, 2);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(6, 26, 7, 5);
+    ctx.fillRect(27, 26, 7, 5);
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('ojisan_bucho')) {
+    const c = scene.textures.createCanvas('ojisan_bucho', 44, 50);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(11, 22, 22, 20);
+    ctx.fillStyle = '#fca5a5';
+    ctx.beginPath();
+    ctx.arc(22, 13, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(8, 7, 28, 4);
+    ctx.beginPath();
+    ctx.moveTo(34, 9);
+    ctx.lineTo(42, 18);
+    ctx.lineTo(39, 19);
+    ctx.lineTo(32, 11);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(16, 13, 3, 2);
+    ctx.fillRect(25, 13, 3, 2);
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(22, 16, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#991b1b';
+    ctx.fillRect(3, 28, 9, 8);
+    ctx.fillRect(32, 28, 9, 8);
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('ojisan_bonus')) {
+    const c = scene.textures.createCanvas('ojisan_bonus', 42, 48);
+    const ctx = c.getContext();
+    const gGrad = ctx.createRadialGradient(21, 24, 4, 21, 24, 20);
+    gGrad.addColorStop(0, '#ffffff');
+    gGrad.addColorStop(0.5, '#fde047');
+    gGrad.addColorStop(1, '#ca8a04');
+    ctx.fillStyle = gGrad;
+    ctx.beginPath();
+    ctx.arc(21, 24, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(12, 20, 18, 16);
+    ctx.fillStyle = '#22c55e';
+    ctx.beginPath();
+    ctx.arc(8, 26, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(21, 12, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(14, 10, 14, 4);
+    c.refresh();
+  }
+
+  // 5. ボスたち
+  if (!scene.textures.exists('boss_toilet')) {
+    const c = scene.textures.createCanvas('boss_toilet', 96, 102);
+    const ctx = c.getContext();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(20, 36, 56, 30);
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(72, 42, 8, 12);
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(72, 42, 8, 12);
+
+    const bowlGrad = ctx.createLinearGradient(0, 50, 0, 98);
+    bowlGrad.addColorStop(0, '#ffffff');
+    bowlGrad.addColorStop(0.6, '#f1f5f9');
+    bowlGrad.addColorStop(1, '#cbd5e1');
+    ctx.fillStyle = bowlGrad;
+    ctx.beginPath();
+    ctx.ellipse(48, 74, 40, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#475569';
+    ctx.stroke();
+
+    const waterGrad = ctx.createRadialGradient(48, 76, 2, 48, 76, 26);
+    waterGrad.addColorStop(0, '#e0f2fe');
+    waterGrad.addColorStop(0.5, '#38bdf8');
+    waterGrad.addColorStop(1, '#0284c7');
+    ctx.fillStyle = waterGrad;
+    ctx.beginPath();
+    ctx.ellipse(48, 76, 26, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(36, 22, 24, 22);
+    ctx.fillStyle = '#fde047';
+    ctx.beginPath();
+    ctx.arc(48, 16, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath();
+    ctx.moveTo(36, 6);
+    ctx.lineTo(41, 11);
+    ctx.lineTo(48, 3);
+    ctx.lineTo(55, 11);
+    ctx.lineTo(60, 6);
+    ctx.lineTo(58, 13);
+    ctx.lineTo(38, 13);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(48, 9, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(42, 15, 4, 3);
+    ctx.fillRect(50, 15, 4, 3);
+    ctx.fillRect(44, 22, 8, 3);
+
+    ctx.fillStyle = '#dc2626';
+    ctx.fillRect(4, 62, 16, 16);
+    ctx.fillRect(76, 62, 16, 16);
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(1, 66, 4, 8);
+    ctx.fillRect(91, 66, 4, 8);
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('boss_fakehero')) {
+    const c = scene.textures.createCanvas('boss_fakehero', 72, 82);
+    const ctx = c.getContext();
+
+    const darkGrad = ctx.createLinearGradient(0, 30, 0, 78);
+    darkGrad.addColorStop(0, '#1e1b4b');
+    darkGrad.addColorStop(1, '#020617');
+    ctx.fillStyle = darkGrad;
+    ctx.beginPath();
+    ctx.moveTo(20, 30);
+    ctx.lineTo(4, 78);
+    ctx.lineTo(68, 78);
+    ctx.lineTo(52, 30);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#4338ca';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fca5a5';
+    ctx.fillRect(22, 26, 28, 28);
+    ctx.fillRect(10, 30, 12, 22);
+    ctx.fillRect(50, 30, 12, 22);
+    ctx.fillRect(22, 60, 10, 16);
+    ctx.fillRect(40, 60, 10, 16);
+
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.moveTo(18, 44);
+    ctx.lineTo(54, 44);
+    ctx.lineTo(50, 66);
+    ctx.lineTo(38, 66);
+    ctx.lineTo(36, 58);
+    ctx.lineTo(34, 66);
+    ctx.lineTo(22, 66);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#dc2626';
+    ctx.stroke();
+
+    ctx.fillStyle = '#fca5a5';
+    ctx.beginPath();
+    ctx.arc(36, 18, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(23, 14, 26, 8);
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(23, 14, 26, 8);
+    ctx.strokeStyle = '#f87171';
+    ctx.beginPath();
+    ctx.moveTo(25, 18);
+    ctx.lineTo(47, 18);
+    ctx.stroke();
+
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(30, 6);
+    ctx.lineTo(36, 0);
+    ctx.lineTo(42, 6);
+    ctx.lineTo(36, 12);
+    ctx.closePath();
+    ctx.fill();
+
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('boss_giant_toilet')) {
+    const c = scene.textures.createCanvas('boss_giant_toilet', 160, 140);
+    const ctx = c.getContext();
+
+    const armorGrad = ctx.createLinearGradient(0, 20, 0, 68);
+    armorGrad.addColorStop(0, '#475569');
+    armorGrad.addColorStop(0.5, '#334155');
+    armorGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = armorGrad;
+    ctx.fillRect(30, 20, 100, 48);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(30, 20, 100, 48);
+
+    ctx.fillStyle = '#eab308';
+    ctx.fillRect(35, 24, 90, 8);
+    ctx.fillStyle = '#0f172a';
+    for (let x = 38; x < 125; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, 24);
+      ctx.lineTo(x + 8, 32);
+      ctx.lineTo(x + 4, 32);
+      ctx.lineTo(x - 4, 24);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(80, 46, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(75, 42, 3, 3);
+    ctx.fillRect(82, 42, 3, 3);
+    ctx.fillRect(77, 50, 6, 2);
+
+    const bowlGrad = ctx.createLinearGradient(0, 68, 0, 134);
+    bowlGrad.addColorStop(0, '#64748b');
+    bowlGrad.addColorStop(0.7, '#475569');
+    bowlGrad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = bowlGrad;
+    ctx.beginPath();
+    ctx.ellipse(80, 96, 68, 38, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 5;
+    ctx.stroke();
+
+    const muckGrad = ctx.createRadialGradient(80, 98, 6, 80, 98, 48);
+    muckGrad.addColorStop(0, '#a3e635');
+    muckGrad.addColorStop(0.5, '#4d7c0f');
+    muckGrad.addColorStop(1, '#14532d');
+    ctx.fillStyle = muckGrad;
+    ctx.beginPath();
+    ctx.ellipse(80, 98, 48, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#bef264';
+    ctx.beginPath();
+    ctx.arc(65, 96, 6, 0, Math.PI * 2);
+    ctx.arc(95, 98, 7, 0, Math.PI * 2);
+    ctx.arc(80, 104, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#713f12';
+    ctx.fillRect(4, 75, 26, 28);
+    ctx.fillRect(130, 75, 26, 28);
+    ctx.strokeStyle = '#451a03';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(4, 75, 26, 28);
+    ctx.strokeRect(130, 75, 26, 28);
+
+    c.refresh();
+  }
+
+  // 6. ビーム類
+  if (!scene.textures.exists('enemy_laser')) {
+    const c = scene.textures.createCanvas('enemy_laser', 14, 24);
+    const ctx = c.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, 24);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, '#f472b6');
+    grad.addColorStop(0.8, '#ec4899');
+    grad.addColorStop(1, '#9333ea');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(7, 12, 6, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('dirty_water_beam')) {
+    const c = scene.textures.createCanvas('dirty_water_beam', 26, 44);
+    const ctx = c.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, 44);
+    grad.addColorStop(0, '#fef08a');
+    grad.addColorStop(0.25, '#84cc16');
+    grad.addColorStop(0.7, '#713f12');
+    grad.addColorStop(1, '#1e3a15');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(13, 22, 12, 21, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#14532d';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('dirty_bubble')) {
+    const c = scene.textures.createCanvas('dirty_bubble', 22, 22);
+    const ctx = c.getContext();
+    const grad = ctx.createRadialGradient(11, 11, 2, 11, 11, 10);
+    grad.addColorStop(0, '#d9f99d');
+    grad.addColorStop(0.6, '#65a30d');
+    grad.addColorStop(1, '#3f6212');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(11, 11, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#bef264';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    c.refresh();
+  }
+
+  if (!scene.textures.exists('reflected_laser')) {
+    const c = scene.textures.createCanvas('reflected_laser', 18, 30);
+    const ctx = c.getContext();
+    const grad = ctx.createLinearGradient(0, 0, 0, 30);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.3, '#fef08a');
+    grad.addColorStop(0.7, '#facc15');
+    grad.addColorStop(1, '#f97316');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(9, 15, 8, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    c.refresh();
+  }
+}
+
+// ===================================================================
+// 1. タイトルシーン
+// ===================================================================
+class TitleScene extends Phaser.Scene {
+  constructor() {
+    super('TitleScene');
+    this.selectedDifficulty = localStorage.getItem('pantsman_difficulty') || 'normal';
+  }
+
+  create() {
+    generateTextures(this);
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    this.add.image(width / 2, height / 2, 'bg_stage1').setAlpha(0.6);
+    this.add.rectangle(width / 2, height / 2, width, height, 0x090e17, 0.55);
+    this.add.image(width / 2, height / 2, 'vignette').setDepth(20).setAlpha(0.6);
+
+    const hero = this.add.image(width / 2 - 24, 76, 'pantsman').setScale(1.35).setDepth(25);
+    const ally = this.add.image(width / 2 + 34, 86, 'ally_pantsman').setScale(1.2).setDepth(24);
+
+    this.tweens.add({
+      targets: [hero, ally],
+      y: '-=8',
+      yoyo: true,
+      repeat: -1,
+      duration: 750,
+      ease: 'Sine.easeInOut'
+    });
+
+    this.add.text(width / 2, 142, '走れ！パンツマン\nTHE HERO 2.5', {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '28px',
+      fontStyle: 'bold',
+      align: 'center',
+      color: '#facc15',
+      stroke: '#e11d48',
+      strokeThickness: 8
+    }).setOrigin(0.5).setDepth(25);
+
+    this.add.text(width / 2, 192, '〜 全3面！仲間と共に巨大トイレを倒せ！ 〜', {
+      fontSize: '11px',
+      color: '#cbd5e1',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(25);
+
+    const card = this.add.rectangle(width / 2, 275, 364, 115, 0x0f172a, 0.9).setDepth(25);
+    card.setStrokeStyle(1.5, 0x38bdf8);
+
+    const helpText =
+      '【移動】 矢印キー [↑↓←→] または [W A S D] (タッチドラッグ対応)\n' +
+      '【攻撃1】 パンツパチンコ: [Z] / [Space] (長押し溜めでギガバースト)\n' +
+      '【攻撃2】 マント反射ガード: [X] / [C] / [K] (ビームを跳ね返せ！)\n' +
+      '【緊急ボム】 メガ・ブリーフフラッシュ: [B] (全2回・弾消し全体撃)\n' +
+      '★ 1面ボスで捕まった仲間を救出すると2面からパワーアップ共闘！';
+
+    this.add.text(width / 2, 275, helpText, {
+      fontSize: '10px',
+      color: '#f8fafc',
+      align: 'left',
+      lineSpacing: 4,
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(26);
+
+    const highScore = localStorage.getItem('pantsman_hiscore') || 0;
+    this.add.text(width / 2, 350, `🏆 最高スコア: ${highScore} pt`, {
+      fontSize: '13px',
+      color: '#facc15',
+      fontStyle: 'bold'
+    }).setOrigin(0.5).setDepth(25);
+
+    this.add.text(width / 2, 380, '── 難易度モード選択 ──', {
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color: '#94a3b8'
+    }).setOrigin(0.5).setDepth(25);
+
+    this.diffButtons = {};
+    const modes = [
+      { id: 'easy', label: '🟢 EASY', x: 80, color: 0x10b981, border: 0x34d399, desc: '🟢 EASY: 敵数・弾速・移動が 0.8倍 (のんびり楽しめる)' },
+      { id: 'normal', label: '🔵 NORMAL', x: 200, color: 0x0284c7, border: 0x38bdf8, desc: '🔵 NORMAL: 標準バランス (1.0倍 / おすすめ！)' },
+      { id: 'hard', label: '🔴 HARD', x: 320, color: 0xbe123c, border: 0xf43f5e, desc: '🔴 HARD: 敵数・弾速・移動が 1.25倍 (超絶弾幕・猛者向け)' }
+    ];
+
+    this.diffDescText = this.add.text(width / 2, 452, '', {
+      fontSize: '10.5px',
+      fontStyle: 'bold',
+      color: '#f1f5f9',
+      backgroundColor: '#0f172a',
+      padding: { x: 10, y: 5 }
+    }).setOrigin(0.5).setDepth(26);
+
+    modes.forEach(m => {
+      const btn = this.add.rectangle(m.x, 414, 102, 34, m.color)
+        .setInteractive({ useHandCursor: true }).setDepth(25);
+      btn.setStrokeStyle(2, 0xffffff);
+
+      const label = this.add.text(m.x, 414, m.label, {
+        fontSize: '12px',
+        fontStyle: 'bold',
+        color: '#ffffff'
+      }).setOrigin(0.5).setDepth(26);
+
+      btn.on('pointerdown', () => {
+        this.selectDifficulty(m.id);
+      });
+
+      this.diffButtons[m.id] = { rect: btn, label: label, data: m };
+    });
+
+    this.startBtn = this.add.rectangle(width / 2, 528, 310, 48, 0xe11d48)
+      .setInteractive({ useHandCursor: true }).setDepth(25);
+    this.startBtn.setStrokeStyle(3, 0xffffff);
+
+    this.startText = this.add.text(width / 2, 528, '', {
+      fontSize: '14.5px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(26);
+
+    this.tweens.add({
+      targets: [this.startBtn, this.startText],
+      scale: 1.04,
+      yoyo: true,
+      repeat: -1,
+      duration: 650
+    });
+
+    this.selectDifficulty(this.selectedDifficulty);
+
+    const startGame = () => {
+      soundManager.init();
+      soundManager.playSnap();
+      this.scene.start('GameScene', { difficulty: this.selectedDifficulty });
+    };
+
+    this.startBtn.on('pointerdown', startGame);
+    this.input.keyboard.on('keydown-ENTER', startGame);
+    this.input.keyboard.on('keydown-SPACE', startGame);
+
+    this.input.keyboard.on('keydown-ONE', () => this.selectDifficulty('easy'));
+    this.input.keyboard.on('keydown-TWO', () => this.selectDifficulty('normal'));
+    this.input.keyboard.on('keydown-THREE', () => this.selectDifficulty('hard'));
+    this.input.keyboard.on('keydown-LEFT', () => {
+      const order = ['easy', 'normal', 'hard'];
+      const idx = order.indexOf(this.selectedDifficulty);
+      if (idx > 0) this.selectDifficulty(order[idx - 1]);
+    });
+    this.input.keyboard.on('keydown-RIGHT', () => {
+      const order = ['easy', 'normal', 'hard'];
+      const idx = order.indexOf(this.selectedDifficulty);
+      if (idx < 2) this.selectDifficulty(order[idx + 1]);
+    });
+  }
+
+  selectDifficulty(diffId) {
+    this.selectedDifficulty = diffId;
+    localStorage.setItem('pantsman_difficulty', diffId);
+    soundManager.playSnap();
+
+    Object.keys(this.diffButtons).forEach(id => {
+      const b = this.diffButtons[id];
+      const isSelected = (id === diffId);
+      if (isSelected) {
+        b.rect.setStrokeStyle(3, 0xfacc15);
+        b.rect.setScale(1.08);
+        b.label.setScale(1.08);
+        this.diffDescText.setText(b.data.desc);
+      } else {
+        b.rect.setStrokeStyle(1.5, 0x64748b);
+        b.rect.setScale(1.0);
+        b.label.setScale(1.0);
+      }
+    });
+
+    const diffUpper = diffId.toUpperCase();
+    this.startText.setText(`★ START [${diffUpper}] (SPACE / ENTER) ★`);
+
+    const colors = { easy: 0x059669, normal: 0x0284c7, hard: 0xbe123c };
+    this.startBtn.setFillStyle(colors[diffId] || 0xe11d48);
+  }
+}
+
+// ===================================================================
+// 2. ゲーム本編シーン（全3面ステージ進行 & 画面遷移アニメ）
+// ===================================================================
+class GameScene extends Phaser.Scene {
+  constructor() {
+    super('GameScene');
+  }
+
+  init(data) {
+    this.difficulty = (data && data.difficulty) ? data.difficulty : (localStorage.getItem('pantsman_difficulty') || 'normal');
+
+    const diffConfigs = {
+      easy: {
+        id: 'easy',
+        name: 'EASY',
+        badgeColor: 0x10b981,
+        badgeTextColor: '#34d399',
+        enemyCountMult: 0.8,
+        speedMult: 0.8,
+        fireRateMult: 0.8,
+        bulletSpeedMult: 0.8,
+        bossHpMult: 0.8,
+        scoreMult: 0.8
+      },
+      normal: {
+        id: 'normal',
+        name: 'NORMAL',
+        badgeColor: 0x0284c7,
+        badgeTextColor: '#38bdf8',
+        enemyCountMult: 1.0,
+        speedMult: 1.0,
+        fireRateMult: 1.0,
+        bulletSpeedMult: 1.0,
+        bossHpMult: 1.0,
+        scoreMult: 1.0
+      },
+      hard: {
+        id: 'hard',
+        name: 'HARD',
+        badgeColor: 0xbe123c,
+        badgeTextColor: '#f87171',
+        enemyCountMult: 1.25,
+        speedMult: 1.25,
+        fireRateMult: 1.25,
+        bulletSpeedMult: 1.25,
+        bossHpMult: 1.25,
+        scoreMult: 1.25
+      }
+    };
+    this.diffConfig = diffConfigs[this.difficulty] || diffConfigs.normal;
+
+    this.score = 0;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.playerSpeed = 260;
+    this.isShieldActive = false;
+    this.shieldCooldown = false;
+    this.attackLevel = 1;
+    this.stage = 1;
+    this.stageDefeated = 0;
+    this.stageRequiredEnemies = 8;
+    this.boss = null;
+    this.bossSpawned = false;
+    this.bossMaxHp = Math.round(220 * this.diffConfig.bossHpMult);
+    this.bossPhase = 1;
+    this.gameIsOver = false;
+    this.isInvincible = false;
+    this.lastShotTime = 0;
+    this.shotCooldownMs = 230;
+
+    this.hasAlly = false;
+    this.ally = null;
+    this.allyLevel = 1;
+
+    this.bombCount = 2;
+
+    this.chargeDuration = 0;
+    this.isChargeReady = false;
+    this.chargingSoundPlayed = false;
+
+    this.reflectCombo = 0;
+    this.lastReflectTime = 0;
+    this.totalReflects = 0;
+    this.totalDamageTaken = 0;
+    this.gameStartTime = Date.now();
+
+    // 会話・カットイン管理
+    this.isDialogueActive = false;
+    this.currentDialogGroup = null;
+    this.dialogueTimer = null;
+    this.dialogueBarrier = null;
+    this.dialogueKeyDownHandler = null;
+
+    this.isTransitionActive = false;
+    this.pinchDialogueTriggered = false;
+
+    this.inputDir = { up: false, down: false, left: false, right: false };
+    this.isPressingFire = false;
+    this.touchDragTarget = null;
+  }
+
+  create() {
+    generateTextures(this);
+    soundManager.init();
+
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    this.bgImage = this.add.image(width / 2, height / 2, 'bg_stage1').setDepth(0);
+    this.add.image(width / 2, height / 2, 'vignette').setDepth(190).setAlpha(0.5);
+
+    this.stageBanner = this.add.text(width / 2, 72, '【STAGE 1: 校長室の決戦】', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#fde047',
+      backgroundColor: '#0f172a',
+      padding: { x: 8, y: 3 }
+    }).setOrigin(0.5).setDepth(10);
+
+    this.bgStars = [];
+    for (let i = 0; i < 24; i++) {
+      const star = this.add.circle(
+        Phaser.Math.Between(0, width),
+        Phaser.Math.Between(0, height),
+        Phaser.Math.Between(1, 2.5),
+        0x94a3b8,
+        0.35
+      ).setDepth(1);
+      this.bgStars.push({ sprite: star, speed: Phaser.Math.Between(25, 60) });
+    }
+
+    this.playerBullets = this.physics.add.group();
+    this.allyBullets = this.physics.add.group();
+    this.reflectedBullets = this.physics.add.group();
+    this.enemies = this.physics.add.group();
+    this.enemyLasers = this.physics.add.group();
+    this.powerItems = this.physics.add.group();
+    this.healItems = this.physics.add.group();
+
+    this.player = this.physics.add.sprite(width / 2, height - 140, 'pantsman').setDepth(20);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setSize(38, 52);
+
+    this.chargeAura = this.add.circle(this.player.x, this.player.y, 42, 0xfacc15, 0.4).setDepth(19);
+    this.chargeAura.setStrokeStyle(3, 0xffffff);
+    this.chargeAura.setVisible(false);
+
+    this.shieldGlow = this.add.ellipse(this.player.x, this.player.y - 8, 88, 88, 0x38bdf8, 0.45).setDepth(21);
+    this.shieldGlow.setStrokeStyle(4, 0x00f0ff);
+    this.shieldGlow.setVisible(false);
+
+    this.bombFlash = this.add.rectangle(width / 2, height / 2, width, height, 0xffffff)
+      .setAlpha(0).setDepth(250);
+
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyW = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
+    this.keyA = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
+    this.keyS = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
+    this.keyD = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+
+    this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    this.keyJ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J);
+
+    const onFireDown = () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.isPressingFire = true;
+      }
+    };
+    const onFireUp = () => { this.handleFireRelease(); };
+
+    this.keyZ.on('down', onFireDown);
+    this.keySpace.on('down', onFireDown);
+    this.keyJ.on('down', onFireDown);
+    this.keyZ.on('up', onFireUp);
+    this.keySpace.on('up', onFireUp);
+    this.keyJ.on('up', onFireUp);
+
+    this.keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    this.keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    this.keyK = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.K);
+    this.keyShift = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SHIFT);
+
+    const triggerShield = () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.actionActivateShield();
+      }
+    };
+    this.keyX.on('down', triggerShield);
+    this.keyC.on('down', triggerShield);
+    this.keyK.on('down', triggerShield);
+    this.keyShift.on('down', triggerShield);
+
+    this.keyB = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.B);
+    this.keyV = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.V);
+    const triggerBomb = () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.actionUseBomb();
+      }
+    };
+    this.keyB.on('down', triggerBomb);
+    this.keyV.on('down', triggerBomb);
+
+    this.createHUD();
+    this.createControlsUI(width, height);
+    this.setupTouchDragControls();
+    this.setupColliders();
+
+    // ★ ゲーム開始時：大迫力のパンツマン登場カットインアニメーション！
+    this.playStageIntroAnimation(1, () => {
+      this.startStageCombat();
+    });
+  }
+
+  // --- ステージ開始時の敵スポーン＆タイマー開始 ---
+  startStageCombat() {
+    const baseSpawnDelay = Math.round(2600 / this.diffConfig.speedMult);
+    if (this.spawnTimer) this.spawnTimer.remove();
+    this.spawnTimer = this.time.addEvent({
+      delay: baseSpawnDelay,
+      callback: this.spawnEnemyWave,
+      callbackScope: this,
+      loop: true
+    });
+
+    if (this.itemDropTimer) this.itemDropTimer.remove();
+    this.itemDropTimer = this.time.addEvent({
+      delay: 11000,
+      callback: () => {
+        if (!this.gameIsOver && this.attackLevel < 5 && !this.isDialogueActive && !this.isTransitionActive) {
+          this.spawnPowerItem(Phaser.Math.Between(60, this.cameras.main.width - 60), 40);
+        }
+      },
+      loop: true
+    });
+
+    soundManager.playBGM(`stage${this.stage}`);
+  }
+
+  // =================================================================
+  // ★ 画面遷移・パンツマン特大カットイン演出（開始＆面進み時）
+  // =================================================================
+  playStageIntroAnimation(stageNum, onComplete) {
+    this.isTransitionActive = true;
+    this.clearDialogue();
+    this.player.setVelocity(0, 0);
+
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    soundManager.playPowerUp();
+
+    const overlay = this.add.container(0, 0).setDepth(300);
+
+    // 暗転＆集中線
+    const darkBg = this.add.rectangle(width / 2, height / 2, width, height, 0x060911, 0.88);
+    const speedlines = this.add.image(width / 2, height / 2, 'speedlines').setScale(1.2).setAlpha(0.65);
+
+    this.tweens.add({
+      targets: speedlines,
+      angle: 360,
+      duration: 10000,
+      repeat: -1
+    });
+
+    // ステージタイトルバナー
+    const stageTitles = {
+      1: '【 STAGE 1: 校長室の決戦 】',
+      2: '【 STAGE 2: 夕暮れの学校屋上 】',
+      3: '【 FINAL STAGE: 地下下水要塞 】'
+    };
+    const titleBanner = this.add.rectangle(width / 2, 85, 340, 36, 0x0f172a, 0.95);
+    titleBanner.setStrokeStyle(2, 0xfacc15);
+    const titleText = this.add.text(width / 2, 85, stageTitles[stageNum] || `STAGE ${stageNum}`, {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '15px',
+      fontStyle: 'bold',
+      color: '#facc15'
+    }).setOrigin(0.5);
+
+    // ★ 特大パンツマン（スケール2.4倍）のヒーローカットイン！
+    const bigHero = this.add.image(stageNum === 1 ? width / 2 : width / 2 - 45, 235, 'pantsman')
+      .setScale(0.5).setAlpha(0);
+
+    // 黄金オーラ
+    const heroAura = this.add.circle(bigHero.x, bigHero.y, 65, 0xfacc15, 0.35);
+    heroAura.setStrokeStyle(3, 0xffffff);
+    heroAura.setScale(0.5).setAlpha(0);
+
+    let bigAlly = null;
+    if (stageNum >= 2) {
+      bigAlly = this.add.image(width / 2 + 55, 250, 'ally_pantsman').setScale(0.5).setAlpha(0);
+    }
+
+    // スムーズなズーム＆スライドイン
+    this.tweens.add({
+      targets: [bigHero, heroAura],
+      scale: 2.3,
+      alpha: 1,
+      duration: 450,
+      ease: 'Back.easeOut'
+    });
+
+    if (bigAlly) {
+      this.tweens.add({
+        targets: bigAlly,
+        scale: 1.85,
+        alpha: 1,
+        duration: 500,
+        delay: 150,
+        ease: 'Back.easeOut'
+      });
+    }
+
+    // かっこいい決めゼリフ！
+    const quotes = {
+      1: '「全校生徒の平和と白いブリーフは、\n私が守る！ パンツマン、いざ出撃！！」',
+      2: '「教頭先生、背中は任せたぞ！\n夕陽に輝く純潔の力、悪党に見せてやる！！」',
+      3: '「ここが奴らの本拠地か…！\n最後の水洗ボタンは私たちが押す！ 全力全開！！」'
+    };
+
+    const speechCard = this.add.rectangle(width / 2, 400, 360, 95, 0x0f172a, 0.95);
+    speechCard.setStrokeStyle(2.5, 0x38bdf8);
+
+    const speakerBadge = this.add.text(width / 2, 364, '⚡ 愛と正義の校長: パンツマン ⚡', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#fde047',
+      backgroundColor: '#7f1d1d',
+      padding: { x: 8, y: 3 }
+    }).setOrigin(0.5);
+
+    const speechText = this.add.text(width / 2, 412, quotes[stageNum] || '「行くぞ！！」', {
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      align: 'center',
+      lineSpacing: 5
+    }).setOrigin(0.5);
+
+    const readyText = this.add.text(width / 2, 490, '★ READY... FIGHT!! ★', {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '22px',
+      fontStyle: 'bold',
+      color: '#f43f5e',
+      stroke: '#ffffff',
+      strokeThickness: 4
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: readyText,
+      scale: 1.15,
+      yoyo: true,
+      repeat: -1,
+      duration: 350
+    });
+
+    const skipPrompt = this.add.text(width / 2, 535, '▼ [TAP / SPACE でスキップ]', {
+      fontSize: '10px',
+      color: '#94a3b8'
+    }).setOrigin(0.5);
+
+    overlay.add([darkBg, speedlines, titleBanner, titleText, heroAura, bigHero]);
+    if (bigAlly) overlay.add(bigAlly);
+    overlay.add([speechCard, speakerBadge, speechText, readyText, skipPrompt]);
+
+    const finishIntro = () => {
+      if (!this.isTransitionActive) return;
+      this.isTransitionActive = false;
+
+      this.cameras.main.shake(180, 0.015);
+      soundManager.playSnap();
+
+      this.tweens.add({
+        targets: overlay,
+        alpha: 0,
+        duration: 250,
+        onComplete: () => {
+          overlay.destroy();
+          if (onComplete) onComplete();
+        }
+      });
+    };
+
+    darkBg.setInteractive().on('pointerdown', finishIntro);
+    speechCard.setInteractive().on('pointerdown', finishIntro);
+
+    const spaceListener = (e) => {
+      if (['Space', 'Enter', 'KeyZ'].includes(e.code)) {
+        window.removeEventListener('keydown', spaceListener);
+        finishIntro();
+      }
+    };
+    window.addEventListener('keydown', spaceListener, { once: true });
+
+    // 2.7秒後に自動でゲームスタート
+    this.time.delayedCall(2700, () => {
+      window.removeEventListener('keydown', spaceListener);
+      finishIntro();
+    });
+  }
+
+  // --- ステージテーマ切り替え ---
+  setStageTheme(stageNum) {
+    this.stage = stageNum;
+    this.stageDefeated = 0;
+    this.bossSpawned = false;
+    this.boss = null;
+    this.bossHpContainer.setVisible(false);
+    this.clearDialogue();
+
+    let stageName = '';
+    let bgTexture = 'bg_stage1';
+
+    if (stageNum === 1) {
+      stageName = '【STAGE 1: 校長室の決戦】';
+      bgTexture = 'bg_stage1';
+      this.bossMaxHp = Math.round(220 * this.diffConfig.bossHpMult);
+      this.stageRequiredEnemies = 8;
+    } else if (stageNum === 2) {
+      stageName = '【STAGE 2: 屋上・偽ヒーローの罠】';
+      bgTexture = 'bg_stage2';
+      this.bossMaxHp = Math.round(360 * this.diffConfig.bossHpMult);
+      this.stageRequiredEnemies = 10;
+    } else if (stageNum === 3) {
+      stageName = '【STAGE 3: 地下下水道・巨大トイレ要塞】';
+      bgTexture = 'bg_stage3';
+      this.bossMaxHp = Math.round(550 * this.diffConfig.bossHpMult);
+      this.stageRequiredEnemies = 12;
+      this.allyLevel = Math.max(this.allyLevel, 2);
+    }
+
+    this.stageBanner.setText(stageName);
+    this.bossCountText.setText(`BOSSまで: ${this.stageRequiredEnemies}体`);
+    this.bgImage.setTexture(bgTexture);
+
+    // ★ ステージ進む際の画面遷移アニメーション発火！
+    this.playStageIntroAnimation(stageNum, () => {
+      this.startStageCombat();
+    });
+  }
+
+  createHUD() {
+    const width = this.cameras.main.width;
+
+    this.hudBg = this.add.rectangle(width / 2, 28, width - 12, 54, 0x090e1a, 0.88).setDepth(100);
+    this.hudBg.setStrokeStyle(1.5, 0x38bdf8);
+
+    this.hpLabel = this.add.text(14, 10, 'HP 100/100', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setDepth(101);
+
+    this.hpBarBg = this.add.rectangle(132, 16, 72, 11, 0x1e293b).setOrigin(0.5).setDepth(101);
+    this.hpBarBg.setStrokeStyle(1, 0x475569);
+    this.hpBarFill = this.add.rectangle(132, 16, 72, 11, 0x22c55e).setOrigin(0.5).setDepth(101);
+
+    this.chargeBarFill = this.add.rectangle(132, 26, 0, 4, 0xfacc15).setOrigin(0.5).setDepth(101);
+
+    this.powerLevelText = this.add.text(14, 28, 'ATK Lv.1 ★☆☆☆', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#facc15'
+    }).setDepth(101);
+
+    this.bombHudText = this.add.text(175, 28, '🩲x2', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#ec4899'
+    }).setDepth(101);
+
+    this.bossCountText = this.add.text(210, 28, 'BOSSまで: 8体', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#38bdf8'
+    }).setDepth(101);
+
+    this.diffBadge = this.add.text(width - 110, 14, `[${this.diffConfig.name}]`, {
+      fontSize: '10px',
+      fontStyle: 'bold',
+      color: this.diffConfig.badgeTextColor,
+      backgroundColor: '#0f172a',
+      padding: { x: 4, y: 2 }
+    }).setOrigin(0.5).setDepth(101);
+
+    this.scoreText = this.add.text(width - 14, 14, 'SCORE: 0', {
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#f8fafc'
+    }).setOrigin(1, 0.5).setDepth(101);
+
+    const muteBtn = this.add.text(width - 24, 35, '🔊', { fontSize: '13px' })
+      .setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(101);
+    muteBtn.on('pointerdown', () => {
+      const muted = soundManager.toggleMute();
+      muteBtn.setText(muted ? '🔇' : '🔊');
+    });
+
+    this.warningBanner = this.add.text(width / 2, 85, '⚠️ 警告！ BOSS襲来！ ⚠️', {
+      fontSize: '16px',
+      fontStyle: 'bold',
+      color: '#ef4444',
+      backgroundColor: '#450a0a',
+      padding: { x: 10, y: 5 }
+    }).setOrigin(0.5).setAlpha(0).setDepth(150);
+
+    this.bossHpContainer = this.add.container(width / 2, 95).setVisible(false).setDepth(150);
+    const bossBarBg = this.add.rectangle(0, 0, 230, 14, 0x334155);
+    this.bossHpFill = this.add.rectangle(0, 0, 230, 14, 0xe11d48);
+    this.bossLabel = this.add.text(-110, -18, `BOSS [HP ${this.bossMaxHp}]`, {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#f87171'
+    });
+    this.bossHpContainer.add([bossBarBg, this.bossHpFill, this.bossLabel]);
+  }
+
+  createControlsUI(width, height) {
+    this.add.rectangle(width / 2, height - 42, width, 84, 0x080e1a, 0.95).setDepth(100);
+
+    const dpadCenterX = 60;
+    const dpadCenterY = height - 42;
+
+    this.createDirButton(dpadCenterX, dpadCenterY - 26, '▲', 'up');
+    this.createDirButton(dpadCenterX, dpadCenterY + 26, '▼', 'down');
+    this.createDirButton(dpadCenterX - 26, dpadCenterY, '◀', 'left');
+    this.createDirButton(dpadCenterX + 26, dpadCenterY, '▶', 'right');
+
+    this.btnBomb = this.add.rectangle(140, height - 42, 60, 52, 0x831843, 0.9)
+      .setInteractive({ useHandCursor: true }).setDepth(101)
+      .setStrokeStyle(2, 0xf43f5e);
+    this.btnBombText = this.add.text(140, height - 42, '🩲BOMB\n[B] (2)', {
+      fontSize: '10px',
+      fontStyle: 'bold',
+      align: 'center',
+      color: '#fff'
+    }).setOrigin(0.5).setDepth(102);
+    this.btnBomb.on('pointerdown', () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.actionUseBomb();
+      }
+    });
+
+    this.btnSlingshot = this.add.rectangle(230, height - 42, 85, 52, 0x2563eb, 0.9)
+      .setInteractive({ useHandCursor: true }).setDepth(101)
+      .setStrokeStyle(2, 0x60a5fa);
+    this.add.text(230, height - 42, '💥パチンコ\n(長押し溜め)', {
+      fontSize: '10px',
+      fontStyle: 'bold',
+      align: 'center',
+      color: '#fff'
+    }).setOrigin(0.5).setDepth(102);
+
+    this.btnSlingshot.on('pointerdown', () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.isPressingFire = true;
+      }
+    });
+    this.btnSlingshot.on('pointerup', () => { this.handleFireRelease(); });
+    this.btnSlingshot.on('pointerout', () => { this.handleFireRelease(); });
+
+    this.btnShield = this.add.rectangle(335, height - 42, 85, 52, 0x059669, 0.9)
+      .setInteractive({ useHandCursor: true }).setDepth(101)
+      .setStrokeStyle(2, 0x34d399);
+    this.add.text(335, height - 42, '🛡️マント反射\n[X/C]', {
+      fontSize: '10px',
+      fontStyle: 'bold',
+      align: 'center',
+      color: '#fff'
+    }).setOrigin(0.5).setDepth(102);
+
+    this.btnShield.on('pointerdown', () => {
+      if (!this.isDialogueActive && !this.isTransitionActive && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+        this.actionActivateShield();
+      }
+    });
+  }
+
+  createDirButton(x, y, label, dirKey) {
+    const btn = this.add.rectangle(x, y, 24, 24, 0x1e293b, 0.9)
+      .setInteractive({ useHandCursor: true }).setDepth(101)
+      .setStrokeStyle(1.5, 0x475569);
+    this.add.text(x, y, label, { fontSize: '10px', fontStyle: 'bold', color: '#94a3b8' })
+      .setOrigin(0.5).setDepth(102);
+
+    btn.on('pointerdown', () => { this.inputDir[dirKey] = true; btn.setFillStyle(0x38bdf8); });
+    btn.on('pointerup', () => { this.inputDir[dirKey] = false; btn.setFillStyle(0x1e293b); });
+    btn.on('pointerout', () => { this.inputDir[dirKey] = false; btn.setFillStyle(0x1e293b); });
+    return btn;
+  }
+
+  setupTouchDragControls() {
+    this.input.on('pointerdown', (pointer) => {
+      if (!this.isDialogueActive && !this.isTransitionActive && pointer.y < this.cameras.main.height - 85 && pointer.y > 60) {
+        this.touchDragTarget = { x: pointer.x, y: pointer.y };
+      }
+    });
+
+    this.input.on('pointermove', (pointer) => {
+      if (!this.isDialogueActive && !this.isTransitionActive && pointer.isDown && pointer.y < this.cameras.main.height - 85 && pointer.y > 60) {
+        this.touchDragTarget = { x: pointer.x, y: pointer.y };
+      }
+    });
+
+    this.input.on('pointerup', () => {
+      this.touchDragTarget = null;
+    });
+  }
+
+  actionUseBomb() {
+    if (this.gameIsOver || this.bombCount <= 0 || this.isDialogueActive || this.isTransitionActive) return;
+
+    this.bombCount--;
+    this.bombHudText.setText(`🩲x${this.bombCount}`);
+    soundManager.playBomb();
+
+    this.cameras.main.shake(550, 0.03);
+
+    this.tweens.add({
+      targets: this.bombFlash,
+      alpha: 0.85,
+      duration: 120,
+      yoyo: true,
+      onComplete: () => this.bombFlash.setAlpha(0)
+    });
+
+    const megaBrief = this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'bullet_giga')
+      .setScale(0.2).setAlpha(0.95).setDepth(240);
+
+    this.tweens.add({
+      targets: megaBrief,
+      scale: 14,
+      alpha: 0,
+      angle: 360,
+      duration: 750,
+      ease: 'Cubic.easeOut',
+      onComplete: () => megaBrief.destroy()
+    });
+
+    this.enemyLasers.getChildren().forEach(laser => {
+      this.createDefeatEffect(laser.x, laser.y);
+      laser.destroy();
+    });
+
+    this.enemies.getChildren().forEach(enemy => {
+      this.damageEnemy(enemy, 25);
+    });
+
+    if (this.boss && this.boss.active && this.boss.isReady) {
+      this.damageBoss(40);
+    }
+
+    this.showComicText(this.cameras.main.width / 2, 280, 'メガ・ブリーフフラッシュ！！', '#f43f5e');
+  }
+
+  // =================================================================
+  // ★ 会話演出（パンツマンのメッセージ残留バグ完全修正版）
+  // =================================================================
+  showStoryDialogue(speakerName, iconTexture, message, onComplete) {
+    // 既存の会話タイマーやコンテナを完全に破棄して初期化
+    this.clearDialogue();
+
+    this.isDialogueActive = true;
+    this.player.setVelocity(0, 0);
+
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // 画面全体どこをクリックしても次に進める全画面バリア
+    this.dialogueBarrier = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.001)
+      .setDepth(199).setInteractive({ useHandCursor: true });
+
+    const dialogGroup = this.add.container(width / 2, height - 195).setDepth(200);
+
+    const bg = this.add.rectangle(0, 0, 370, 95, 0x0f172a, 0.96);
+    bg.setStrokeStyle(3, speakerName.includes('パンツ') || speakerName.includes('教頭') ? 0x38bdf8 : 0xef4444);
+
+    const icon = this.add.image(-140, 0, iconTexture).setScale(0.85);
+
+    const nameText = this.add.text(-95, -34, speakerName, {
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color: '#facc15'
+    });
+
+    const msgText = this.add.text(-95, -14, message, {
+      fontSize: '11px',
+      color: '#ffffff',
+      lineSpacing: 4
+    });
+
+    const nextPrompt = this.add.text(155, 30, '▼ [TAP / SPACE]', {
+      fontSize: '9px',
+      color: '#94a3b8'
+    }).setOrigin(1, 0.5);
+
+    this.tweens.add({
+      targets: nextPrompt,
+      alpha: 0.3,
+      yoyo: true,
+      repeat: -1,
+      duration: 400
+    });
+
+    dialogGroup.add([bg, icon, nameText, msgText, nextPrompt]);
+    dialogGroup.setScale(0.8);
+    dialogGroup.setAlpha(0);
+    this.tweens.add({
+      targets: dialogGroup,
+      scale: 1,
+      alpha: 1,
+      duration: 180,
+      ease: 'Back.easeOut'
+    });
+
+    this.currentDialogGroup = dialogGroup;
+
+    const closeHandler = () => {
+      this.clearDialogue();
+      if (onComplete) onComplete();
+    };
+
+    this.dialogueBarrier.on('pointerdown', closeHandler);
+    bg.setInteractive({ useHandCursor: true }).on('pointerdown', closeHandler);
+
+    this.dialogueKeyDownHandler = (e) => {
+      if (['Space', 'Enter', 'KeyZ', 'KeyX', 'KeyC'].includes(e.code)) {
+        closeHandler();
+      }
+    };
+    window.addEventListener('keydown', this.dialogueKeyDownHandler, { once: true });
+
+    // 3.5秒で自動スキップ
+    this.dialogueTimer = this.time.delayedCall(3500, closeHandler);
+  }
+
+  clearDialogue() {
+    if (this.dialogueTimer) {
+      this.dialogueTimer.remove();
+      this.dialogueTimer = null;
+    }
+    if (this.dialogueKeyDownHandler) {
+      window.removeEventListener('keydown', this.dialogueKeyDownHandler);
+      this.dialogueKeyDownHandler = null;
+    }
+    if (this.dialogueBarrier) {
+      this.dialogueBarrier.destroy();
+      this.dialogueBarrier = null;
+    }
+    if (this.currentDialogGroup) {
+      this.currentDialogGroup.destroy();
+      this.currentDialogGroup = null;
+    }
+    this.isDialogueActive = false;
+  }
+
+  handleFireRelease() {
+    if (this.gameIsOver || this.isDialogueActive || this.isTransitionActive) return;
+    if (this.bossSpawned && this.boss && !this.boss.isReady) return;
+
+    this.isPressingFire = false;
+
+    if (this.isChargeReady) {
+      this.actionFireChargeShot();
+    } else {
+      this.actionShootPants();
+    }
+
+    this.chargeDuration = 0;
+    this.isChargeReady = false;
+    this.chargingSoundPlayed = false;
+    this.chargeAura.setVisible(false);
+    this.chargeBarFill.width = 0;
+  }
+
+  actionFireChargeShot() {
+    soundManager.playChargeShot();
+    this.cameras.main.shake(120, 0.01);
+    this.showComicText(this.player.x, this.player.y - 45, 'ギガバースト！', '#facc15');
+
+    const bullet = this.playerBullets.create(this.player.x, this.player.y - 30, 'bullet_giga');
+    bullet.setVelocityY(-620);
+    bullet.setScale(1.2);
+    bullet.damage = 18;
+    bullet.isPiercing = true;
+    bullet.isGiga = true;
+    bullet.body.setSize(48, 38);
+    bullet.setBlendMode(Phaser.BlendModes.ADD);
+
+    if (this.hasAlly && this.ally) {
+      this.fireAllyShot(true);
+    }
+
+    this.tweens.add({
+      targets: this.player,
+      y: this.player.y + 12,
+      yoyo: true,
+      duration: 100
+    });
+  }
+
+  actionShootPants() {
+    if (this.gameIsOver || this.isDialogueActive || this.isTransitionActive) return;
+    if (this.bossSpawned && this.boss && !this.boss.isReady) return;
+
+    const now = this.time.now;
+    if (now - this.lastShotTime < this.shotCooldownMs) return;
+    this.lastShotTime = now;
+
+    soundManager.playSnap();
+
+    this.tweens.add({
+      targets: this.player,
+      scaleX: 1.2,
+      scaleY: 0.85,
+      yoyo: true,
+      duration: 70
+    });
+
+    const px = this.player.x;
+    const py = this.player.y - 25;
+
+    switch (this.attackLevel) {
+      case 1:
+        this.createPantsBullet(px, py, 0, -500, 1, 1.0);
+        break;
+      case 2:
+        this.createPantsBullet(px - 10, py, 0, -520, 1.1, 0.85);
+        this.createPantsBullet(px + 10, py, 0, -520, 1.1, 0.85);
+        break;
+      case 3:
+        this.createPantsBullet(px, py, 0, -530, 1.15, 0.9);
+        this.createPantsBullet(px - 14, py, -110, -500, 1.05, 0.9);
+        this.createPantsBullet(px + 14, py, 110, -500, 1.05, 0.9);
+        break;
+      case 4:
+        this.createPantsBullet(px, py, 0, -560, 1.45, 1.8, true);
+        this.createPantsBullet(px - 18, py, -80, -520, 1.05, 0.7);
+        this.createPantsBullet(px + 18, py, 80, -520, 1.05, 0.7);
+        break;
+      case 5:
+      default:
+        this.createPantsBullet(px, py - 5, 0, -600, 1.6, 2.2, true);
+        this.createPantsBullet(px - 16, py, -130, -540, 1.15, 0.7);
+        this.createPantsBullet(px + 16, py, 130, -540, 1.15, 0.7);
+        this.createPantsBullet(px - 28, py + 5, -220, -500, 1.0, 0.7);
+        this.createPantsBullet(px + 28, py + 5, 220, -500, 1.0, 0.7);
+        break;
+    }
+
+    if (this.hasAlly && this.ally) {
+      this.fireAllyShot(false);
+    }
+  }
+
+  fireAllyShot(isCharge = false) {
+    if (!this.ally) return;
+    soundManager.playAllySnap();
+
+    const ax = this.ally.x;
+    const ay = this.ally.y - 15;
+
+    if (isCharge) {
+      const b = this.allyBullets.create(ax, ay, 'bullet_ally_mega');
+      b.setVelocityY(-560);
+      b.damage = 6.0;
+      b.isPiercing = true;
+      b.body.setSize(30, 24);
+      b.setBlendMode(Phaser.BlendModes.ADD);
+      return;
+    }
+
+    if (this.allyLevel === 1) {
+      const b = this.allyBullets.create(ax, ay, 'bullet_ally');
+      b.setVelocityY(-540);
+      b.damage = 1.3;
+      b.body.setSize(16, 12);
+    } else if (this.allyLevel === 2) {
+      [-7, 7].forEach(offset => {
+        const b = this.allyBullets.create(ax + offset, ay, 'bullet_ally');
+        b.setVelocityY(-550);
+        b.damage = 1.2;
+        b.body.setSize(16, 12);
+      });
+    } else {
+      [-80, 0, 80].forEach(vx => {
+        const b = this.allyBullets.create(ax, ay, 'bullet_ally');
+        b.setVelocity(vx, -540);
+        b.damage = 1.4;
+        b.body.setSize(16, 12);
+      });
+    }
+  }
+
+  createPantsBullet(x, y, vx, vy, scale = 1, damage = 1, isPiercing = false) {
+    const bullet = this.playerBullets.create(x, y, 'bullet_pants');
+    bullet.setVelocity(vx, vy);
+    bullet.setScale(scale);
+    bullet.damage = damage;
+    bullet.isPiercing = isPiercing;
+    bullet.setAngularVelocity(Phaser.Math.Between(-250, 250));
+    bullet.body.setSize(22 * scale, 16 * scale);
+  }
+
+  actionActivateShield() {
+    if (this.gameIsOver || this.isShieldActive || this.shieldCooldown || this.isDialogueActive || this.isTransitionActive) return;
+
+    this.isShieldActive = true;
+    this.shieldGlow.setVisible(true);
+
+    const scale = this.attackLevel >= 4 ? 1.5 : 1.2;
+    this.shieldGlow.setScale(scale);
+
+    soundManager.playCape();
+    this.showComicText(this.player.x + 24, this.player.y - 45, 'バフッ！', '#38bdf8');
+
+    this.time.delayedCall(450, () => {
+      this.isShieldActive = false;
+      this.shieldGlow.setVisible(false);
+      this.shieldCooldown = true;
+      this.btnShield.setAlpha(0.4);
+
+      this.time.delayedCall(480, () => {
+        this.shieldCooldown = false;
+        this.btnShield.setAlpha(0.9);
+      });
+    });
+  }
+
+  spawnPowerItem(x, y) {
+    const item = this.powerItems.create(x, y, 'item_ppants');
+    item.setVelocityY(90);
+    item.setAngularVelocity(45);
+    item.body.setSize(30, 26);
+
+    this.tweens.add({
+      targets: item,
+      scaleX: 1.25,
+      scaleY: 1.25,
+      yoyo: true,
+      repeat: -1,
+      duration: 380
+    });
+  }
+
+  spawnHealItem(x, y) {
+    const item = this.healItems.create(x, y, 'item_paper');
+    item.setVelocityY(80);
+    item.setAngularVelocity(30);
+    item.body.setSize(28, 28);
+  }
+
+  applyPowerUp(item) {
+    item.destroy();
+    soundManager.playPowerUp();
+
+    if (this.attackLevel < 5) {
+      this.attackLevel++;
+      this.showComicText(this.player.x, this.player.y - 50, `POWER UP! Lv.${this.attackLevel}`, '#facc15');
+      if (this.attackLevel === 5) {
+        this.showComicText(this.player.x, this.player.y - 75, '★ MAX POWER!! ★', '#ef4444');
+      }
+    } else {
+      this.addScore(800);
+      this.showComicText(this.player.x, this.player.y - 50, 'BONUS +800pt!', '#facc15');
+    }
+
+    if (this.hasAlly && this.ally) {
+      this.allyLevel = Math.min(3, this.allyLevel + 1);
+    }
+
+    const starIcons = ['', '★☆☆☆', '★★☆☆', '★★★☆', '★★★★', 'MAX!'];
+    this.powerLevelText.setText(`ATK Lv.${this.attackLevel} ${starIcons[this.attackLevel] || ''}`);
+    this.powerLevelText.setColor(this.attackLevel === 5 ? '#f87171' : '#facc15');
+  }
+
+  applyHeal(item) {
+    item.destroy();
+    soundManager.playHeal();
+    this.hp = Math.min(this.maxHp, this.hp + 30);
+    this.updateHpUI();
+    this.showComicText(this.player.x, this.player.y - 50, 'HP回復 +30!', '#4ade80');
+  }
+
+  playerHit(damage) {
+    if (this.isInvincible || this.gameIsOver) return;
+
+    this.hp = Math.max(0, this.hp - damage);
+    this.totalDamageTaken += damage;
+    this.updateHpUI();
+
+    soundManager.playHurt();
+    this.cameras.main.shake(250, 0.015);
+
+    // ピンチ時はノンブロッキングな吹き出しテキストで安全に表示（ゲーム停止しない！）
+    if (this.hp <= 35 && !this.pinchDialogueTriggered) {
+      this.pinchDialogueTriggered = true;
+      this.showComicText(this.player.x, this.player.y - 50, '「くっ…！ゴムの張りが限界だが、\n生徒たちのために倒れん！」', '#f87171');
+    }
+
+    if (this.hp <= 0) {
+      this.triggerGameOver(false);
+      return;
+    }
+
+    this.isInvincible = true;
+    this.tweens.add({
+      targets: this.player,
+      alpha: 0.25,
+      yoyo: true,
+      repeat: 5,
+      duration: 110,
+      onComplete: () => {
+        this.player.setAlpha(1);
+        this.isInvincible = false;
+      }
+    });
+  }
+
+  createHitSpark(x, y, color = 0xfde047) {
+    for (let i = 0; i < 4; i++) {
+      const sp = this.add.circle(x, y, Phaser.Math.Between(2, 4), color, 0.9).setDepth(45);
+      sp.setBlendMode(Phaser.BlendModes.ADD);
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const spd = Phaser.Math.FloatBetween(50, 130);
+      this.physics.add.existing(sp);
+      sp.body.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
+      this.tweens.add({
+        targets: sp,
+        alpha: 0,
+        scale: 0.1,
+        duration: 220,
+        onComplete: () => sp.destroy()
+      });
+    }
+  }
+
+  setupColliders() {
+    this.physics.add.overlap(this.playerBullets, this.enemies, (bullet, enemy) => {
+      this.createHitSpark(bullet.x, bullet.y);
+      if (!bullet.isPiercing) bullet.destroy();
+      this.damageEnemy(enemy, bullet.damage || 1);
+    });
+
+    this.physics.add.overlap(this.allyBullets, this.enemies, (bullet, enemy) => {
+      this.createHitSpark(bullet.x, bullet.y, 0x10b981);
+      if (!bullet.isPiercing) bullet.destroy();
+      this.damageEnemy(enemy, bullet.damage || 1.2);
+    });
+
+    this.physics.add.overlap(this.reflectedBullets, this.enemies, (bullet, enemy) => {
+      this.createHitSpark(bullet.x, bullet.y, 0xfacc15);
+      bullet.destroy();
+      this.damageEnemy(enemy, 5);
+    });
+
+    this.physics.add.overlap(this.playerBullets, this.enemyLasers, (bullet, laser) => {
+      if (bullet.isGiga) {
+        this.createDefeatEffect(laser.x, laser.y);
+        laser.destroy();
+      }
+    });
+
+    this.physics.add.overlap(this.player, this.enemyLasers, (player, laser) => {
+      if (this.isShieldActive) {
+        soundManager.playReflect();
+        this.cameras.main.shake(120, 0.007);
+        this.totalReflects++;
+
+        const now = this.time.now;
+        if (now - this.lastReflectTime < 2000) {
+          this.reflectCombo++;
+        } else {
+          this.reflectCombo = 1;
+        }
+        this.lastReflectTime = now;
+
+        const comboText = this.reflectCombo > 1 ? `REFLECT x${this.reflectCombo}!` : 'カキーン！';
+        this.showComicText(laser.x, laser.y - 20, comboText, '#fef08a');
+
+        const lx = laser.x;
+        const ly = laser.y;
+        const isDirtyBeam = laser.isDirtyBeam;
+        laser.destroy();
+
+        if (this.boss && this.boss.active && this.boss.isReady) {
+          const angle = Phaser.Math.Angle.Between(lx, ly, this.boss.x, this.boss.y);
+          const refBullet = this.reflectedBullets.create(lx, ly - 10, 'reflected_laser');
+          refBullet.setVelocity(Math.cos(angle) * 620, Math.sin(angle) * 620);
+          refBullet.body.setSize(16, 26);
+          refBullet.setBlendMode(Phaser.BlendModes.ADD);
+          if (isDirtyBeam) {
+            refBullet.setScale(2.0);
+            refBullet.damage = 25;
+            this.showComicText(lx, ly - 35, '超・浄化反射！！', '#38bdf8');
+          }
+        } else {
+          const refBullet = this.reflectedBullets.create(lx, ly - 10, 'reflected_laser');
+          refBullet.setVelocity(Phaser.Math.Between(-60, 60), -580);
+          refBullet.body.setSize(14, 24);
+          refBullet.setBlendMode(Phaser.BlendModes.ADD);
+        }
+
+        this.addScore(50 * this.reflectCombo);
+      } else {
+        const dmg = laser.isDirtyBeam ? 25 : 15;
+        laser.destroy();
+        this.playerHit(dmg);
+      }
+    });
+
+    this.physics.add.overlap(this.player, this.powerItems, (player, item) => this.applyPowerUp(item));
+    this.physics.add.overlap(this.player, this.healItems, (player, item) => this.applyHeal(item));
+
+    this.physics.add.overlap(this.playerBullets, this.boss, (boss, bullet) => {
+      if (!this.boss || !this.boss.isReady || this.isDialogueActive || this.isTransitionActive) {
+        bullet.destroy();
+        return;
+      }
+      this.createHitSpark(bullet.x, bullet.y);
+      const dmg = bullet.damage || 1;
+      if (!bullet.isPiercing) bullet.destroy();
+      this.damageBoss(dmg);
+    });
+
+    this.physics.add.overlap(this.allyBullets, this.boss, (boss, bullet) => {
+      if (!this.boss || !this.boss.isReady || this.isDialogueActive || this.isTransitionActive) {
+        bullet.destroy();
+        return;
+      }
+      this.createHitSpark(bullet.x, bullet.y, 0x10b981);
+      if (!bullet.isPiercing) bullet.destroy();
+      this.damageBoss(bullet.damage || 1.2);
+    });
+
+    this.physics.add.overlap(this.reflectedBullets, this.boss, (boss, bullet) => {
+      if (!this.boss || !this.boss.isReady || this.isDialogueActive || this.isTransitionActive) {
+        bullet.destroy();
+        return;
+      }
+      this.createHitSpark(bullet.x, bullet.y, 0xfacc15);
+      const dmg = bullet.damage || 12;
+      bullet.destroy();
+      this.damageBoss(dmg);
+    });
+  }
+
+  damageEnemy(enemy, damage) {
+    enemy.hp -= damage;
+    soundManager.playBoom(false);
+
+    enemy.y -= 2;
+    this.tweens.add({
+      targets: enemy,
+      tint: 0xff0000,
+      duration: 60,
+      yoyo: true,
+      onComplete: () => {
+        if (enemy && enemy.clearTint) enemy.clearTint();
+      }
+    });
+
+    if (enemy.hp <= 0) {
+      this.stageDefeated++;
+      const remain = Math.max(0, this.stageRequiredEnemies - this.stageDefeated);
+      if (!this.bossSpawned) {
+        this.bossCountText.setText(`BOSSまで: ${remain}体`);
+      }
+
+      if (enemy.enemyType === 'bonus') {
+        this.spawnPowerItem(enemy.x - 14, enemy.y);
+        this.spawnHealItem(enemy.x + 14, enemy.y);
+        this.addScore(500);
+      } else if (this.stageDefeated <= 2 || Math.random() < 0.35) {
+        this.spawnPowerItem(enemy.x, enemy.y);
+      } else if (Math.random() < (this.hp < 60 ? 0.35 : 0.18)) {
+        this.spawnHealItem(enemy.x, enemy.y);
+      }
+
+      this.createDefeatEffect(enemy.x, enemy.y);
+      enemy.destroy();
+      this.addScore(100);
+
+      if (this.stageDefeated >= this.stageRequiredEnemies && !this.bossSpawned) {
+        this.triggerBossSpawn();
+      }
+    }
+  }
+
+  damageBoss(damage) {
+    if (!this.boss || this.boss.hp <= 0 || !this.boss.isReady) return;
+
+    this.boss.hp -= damage;
+    soundManager.playBoom(false);
+    this.cameras.main.shake(50, 0.005);
+
+    this.tweens.add({
+      targets: this.boss,
+      scaleX: 1.08,
+      scaleY: 0.94,
+      duration: 50,
+      yoyo: true
+    });
+
+    const pct = Math.max(0, this.boss.hp / this.bossMaxHp);
+    this.bossHpFill.setScale(pct, 1);
+    this.bossLabel.setText(`BOSS [HP ${Math.ceil(this.boss.hp)}]`);
+
+    if (this.bossPhase === 1 && this.boss.hp <= this.bossMaxHp * 0.65) {
+      this.transitionBossPhase(2);
+    } else if (this.bossPhase === 2 && this.boss.hp <= this.bossMaxHp * 0.30) {
+      this.transitionBossPhase(3);
+    }
+
+    if (this.boss.hp <= 0) {
+      this.bossDefeated();
+    }
+  }
+
+  transitionBossPhase(phase) {
+    this.bossPhase = phase;
+    this.cameras.main.shake(300, 0.02);
+
+    if (phase === 2) {
+      this.showComicText(this.boss.x, this.boss.y - 45, 'PHASE 2 突入！', '#f97316');
+      soundManager.playPowerUp();
+    } else if (phase === 3) {
+      this.showComicText(this.boss.x, this.boss.y - 45, '激怒モード発動！！', '#ef4444');
+      soundManager.playBGM('boss_rage');
+    }
+  }
+
+  updateHpUI() {
+    this.hpLabel.setText(`HP ${this.hp}/${this.maxHp}`);
+    const pct = this.hp / this.maxHp;
+    this.hpBarFill.setScale(pct, 1);
+
+    if (pct < 0.3) {
+      this.hpBarFill.setFillStyle(0xef4444);
+    } else if (pct < 0.6) {
+      this.hpBarFill.setFillStyle(0xeab308);
+    } else {
+      this.hpBarFill.setFillStyle(0x22c55e);
+    }
+  }
+
+  spawnEnemyWave() {
+    if (this.gameIsOver || this.bossSpawned || this.isDialogueActive || this.isTransitionActive) return;
+
+    const baseMax = this.stage === 1 ? 2 : (this.stage === 2 ? 3 : 4);
+    const maxEnemies = Math.max(1, Math.round(baseMax * this.diffConfig.enemyCountMult));
+    if (this.enemies.countActive(true) >= maxEnemies) return;
+
+    const width = this.cameras.main.width;
+    const rand = Math.random();
+
+    let texture = 'ojisan_normal';
+    let hp = 10;
+    let type = 'normal';
+    let baseSpeed = 1.0;
+
+    if (rand < 0.35) {
+      texture = 'ojisan_steteko';
+      hp = 8;
+      type = 'steteko';
+      baseSpeed = 1.6;
+    } else if (rand < 0.65) {
+      texture = 'ojisan_bucho';
+      hp = 22;
+      type = 'bucho';
+      baseSpeed = 0.85;
+    } else if (rand < 0.78) {
+      texture = 'ojisan_bonus';
+      hp = 14;
+      type = 'bonus';
+      baseSpeed = 1.3;
+    }
+
+    const stageSpeedMult = (this.stage === 1 ? 1.0 : (this.stage === 2 ? 1.45 : 1.75)) * this.diffConfig.speedMult;
+    const finalSpeed = baseSpeed * stageSpeedMult;
+    const scale = this.stage === 1 ? 1.0 : (this.stage === 2 ? 0.76 : 0.68);
+
+    const x = Phaser.Math.Between(40, width - 40);
+    const enemy = this.enemies.create(x, -25, texture);
+    enemy.hp = hp;
+    enemy.enemyType = type;
+    enemy.setScale(scale);
+    enemy.body.setSize(32 * scale, 38 * scale);
+
+    if (type === 'steteko') {
+      this.tweens.add({
+        targets: enemy,
+        y: Phaser.Math.Between(110, 230),
+        duration: 900 / finalSpeed,
+        ease: 'Cubic.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: enemy,
+            x: enemy.x + Phaser.Math.Between(-80, 80),
+            yoyo: true,
+            repeat: -1,
+            duration: 800 / stageSpeedMult,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      });
+    } else if (type === 'bonus') {
+      enemy.y = 110;
+      this.tweens.add({
+        targets: enemy,
+        x: x < width / 2 ? width + 40 : -40,
+        duration: 3200 / stageSpeedMult,
+        onComplete: () => enemy.destroy()
+      });
+    } else {
+      this.tweens.add({
+        targets: enemy,
+        y: Phaser.Math.Between(95, 190),
+        duration: 1200 / finalSpeed,
+        ease: 'Cubic.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: enemy,
+            x: enemy.x + Phaser.Math.Between(-40, 40),
+            yoyo: true,
+            repeat: -1,
+            duration: 1300 / stageSpeedMult,
+            ease: 'Sine.easeInOut'
+          });
+        }
+      });
+    }
+
+    const fireDelay = Math.max(750, (Phaser.Math.Between(1800, 2600) / stageSpeedMult) / this.diffConfig.fireRateMult);
+    this.time.addEvent({
+      delay: fireDelay,
+      callback: () => {
+        if (enemy && enemy.active && !this.gameIsOver && !this.isDialogueActive && !this.isTransitionActive) {
+          const flash = this.add.circle(enemy.x, enemy.y + 14 * scale, 5 * scale, 0xef4444, 0.8);
+          this.time.delayedCall(150, () => {
+            flash.destroy();
+            if (enemy && enemy.active && !this.gameIsOver && !this.isDialogueActive && !this.isTransitionActive) {
+              if (type === 'bucho') {
+                this.enemyFireLaser(enemy.x - 8, enemy.y + 14 * scale, -35);
+                this.enemyFireLaser(enemy.x + 8, enemy.y + 14 * scale, 35);
+              } else if (type !== 'bonus') {
+                this.enemyFireLaser(enemy.x, enemy.y + 14 * scale);
+              }
+            }
+          });
+        }
+      },
+      loop: true
+    });
+  }
+
+  enemyFireLaser(x, y, speedX = 0, isDirty = false) {
+    if (this.gameIsOver || this.isDialogueActive || this.isTransitionActive) return;
+
+    const bSpeedMult = this.diffConfig ? this.diffConfig.bulletSpeedMult : 1.0;
+
+    if (isDirty) {
+      soundManager.playDirtyBeam();
+      const laser = this.enemyLasers.create(x, y, 'dirty_water_beam');
+      laser.setVelocityY(280 * bSpeedMult);
+      laser.setVelocityX(speedX * bSpeedMult);
+      laser.isDirtyBeam = true;
+      laser.body.setSize(20, 32);
+      laser.setBlendMode(Phaser.BlendModes.ADD);
+    } else {
+      soundManager.playLaser();
+      const laser = this.enemyLasers.create(x, y, 'enemy_laser');
+      laser.setVelocityY(250 * bSpeedMult);
+      laser.setVelocityX(speedX * bSpeedMult);
+      laser.isDirtyBeam = false;
+      laser.body.setSize(8, 16);
+      laser.setBlendMode(Phaser.BlendModes.ADD);
+    }
+  }
+
+  triggerBossSpawn() {
+    this.bossSpawned = true;
+    this.bossCountText.setText('BOSS 交戦中！');
+    soundManager.stopBGM();
+    soundManager.playWarning();
+
+    this.enemies.getChildren().forEach(e => {
+      this.createDefeatEffect(e.x, e.y);
+      e.destroy();
+    });
+
+    this.tweens.add({
+      targets: this.warningBanner,
+      alpha: 1,
+      yoyo: true,
+      repeat: 4,
+      duration: 250,
+      onComplete: () => {
+        this.warningBanner.setAlpha(0);
+        this.spawnBossMech();
+      }
+    });
+  }
+
+  spawnBossMech() {
+    const width = this.cameras.main.width;
+
+    if (this.stage === 1) {
+      this.boss = this.physics.add.sprite(width / 2, -75, 'boss_toilet');
+      this.boss.hp = this.bossMaxHp;
+      this.boss.body.setSize(80, 84);
+      this.boss.isReady = false;
+
+      this.tweens.add({
+        targets: this.boss,
+        y: 175,
+        duration: 2200,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.showStoryDialogue('トイレマン', 'boss_toilet', '「全校生徒のトイレットペーパーを\nすべて流し尽くしてやる！！」', () => {
+            this.showStoryDialogue('パンツマン', 'pantsman', '「校長のプライドにかけて、\n水には流さんぞ！！」', () => {
+              this.startBossFight();
+            });
+          });
+        }
+      });
+    } else if (this.stage === 2) {
+      this.boss = this.physics.add.sprite(width / 2, -75, 'boss_fakehero');
+      this.boss.hp = this.bossMaxHp;
+      this.boss.body.setSize(54, 66);
+      this.boss.isReady = false;
+
+      this.tweens.add({
+        targets: this.boss,
+        y: 165,
+        duration: 2000,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.showStoryDialogue('偽ヒーロー', 'boss_fakehero', '「オレこそが真のパンツヒーロー！\n貴様の白ブリーフなど時代遅れだ！」', () => {
+            this.showStoryDialogue('パンツマン', 'pantsman', '「黒ブリーフの悪党め！\n白の純潔の輝きを見せてやる！！」', () => {
+              this.startBossFight();
+            });
+          });
+        }
+      });
+    } else if (this.stage === 3) {
+      this.boss = this.physics.add.sprite(width / 2, -100, 'boss_giant_toilet');
+      this.boss.hp = this.bossMaxHp;
+      this.boss.body.setSize(140, 110);
+      this.boss.isReady = false;
+
+      this.tweens.add({
+        targets: this.boss,
+        y: 165,
+        duration: 2600,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.showStoryDialogue('巨大トイレ', 'boss_giant_toilet', '「ゴオオオオ…！全世界の水を\n濁った汚水に変えてやる…！！」', () => {
+            this.showStoryDialogue('パンツマン', 'pantsman', '「巨大トイレめ！最後の水洗ボタンは\n私たちが押す！！」', () => {
+              this.startBossFight();
+            });
+          });
+        }
+      });
+    }
+
+    this.setupColliders();
+  }
+
+  startBossFight() {
+    if (!this.boss) return;
+    this.clearDialogue();
+    this.boss.isReady = true;
+    this.bossHpContainer.setVisible(true);
+    soundManager.playBGM('boss');
+    this.showComicText(this.cameras.main.width / 2, 140, 'BATTLE START!!', '#ef4444');
+    this.startBossAttackPatterns();
+  }
+
+  startBossAttackPatterns() {
+    if (!this.boss || this.gameIsOver) return;
+
+    const bSpeedMult = this.diffConfig.bulletSpeedMult;
+    const bFireInterval = Math.round(1300 / this.diffConfig.fireRateMult);
+
+    if (this.stage === 1) {
+      this.tweens.add({
+        targets: this.boss,
+        x: { from: 70, to: this.cameras.main.width - 70 },
+        yoyo: true,
+        repeat: -1,
+        duration: 2000 / this.diffConfig.speedMult,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.bossFireTimer = this.time.addEvent({
+        delay: bFireInterval,
+        callback: () => {
+          if (!this.boss || !this.boss.active || this.gameIsOver || this.isDialogueActive || this.isTransitionActive || !this.boss.isReady) return;
+          if (this.bossPhase === 1) {
+            this.enemyFireLaser(this.boss.x - 28, this.boss.y + 36, -50);
+            this.enemyFireLaser(this.boss.x + 28, this.boss.y + 36, 50);
+          } else {
+            [-80, -40, 0, 40, 80].forEach(vx => {
+              this.enemyFireLaser(this.boss.x, this.boss.y + 40, vx);
+            });
+          }
+        },
+        loop: true
+      });
+    } else if (this.stage === 2) {
+      const s2Interval = Math.round(1100 / this.diffConfig.fireRateMult);
+      this.tweens.add({
+        targets: this.boss,
+        x: { from: 55, to: this.cameras.main.width - 55 },
+        yoyo: true,
+        repeat: -1,
+        duration: 1300 / this.diffConfig.speedMult,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.bossFireTimer = this.time.addEvent({
+        delay: s2Interval,
+        callback: () => {
+          if (!this.boss || !this.boss.active || this.gameIsOver || this.isDialogueActive || this.isTransitionActive || !this.boss.isReady) return;
+
+          soundManager.playSnap();
+          if (this.bossPhase === 1) {
+            [-50, -20, 20, 50].forEach(vx => {
+              const b = this.enemyLasers.create(this.boss.x, this.boss.y + 30, 'bullet_darkpants');
+              b.setVelocity(vx * bSpeedMult, 280 * bSpeedMult);
+              b.body.setSize(18, 16);
+            });
+          } else {
+            [-80, -40, 0, 40, 80].forEach(vx => {
+              const b = this.enemyLasers.create(this.boss.x, this.boss.y + 30, 'bullet_darkpants');
+              b.setVelocity(vx * bSpeedMult, 300 * bSpeedMult);
+              b.body.setSize(18, 16);
+            });
+          }
+        },
+        loop: true
+      });
+    } else if (this.stage === 3) {
+      const s3Interval = Math.round(1400 / this.diffConfig.fireRateMult);
+      this.tweens.add({
+        targets: this.boss,
+        x: { from: 90, to: this.cameras.main.width - 90 },
+        yoyo: true,
+        repeat: -1,
+        duration: 2600 / this.diffConfig.speedMult,
+        ease: 'Sine.easeInOut'
+      });
+
+      this.bossFireTimer = this.time.addEvent({
+        delay: s3Interval,
+        callback: () => {
+          if (!this.boss || !this.boss.active || this.gameIsOver || this.isDialogueActive || this.isTransitionActive || !this.boss.isReady) return;
+
+          this.enemyFireLaser(this.boss.x, this.boss.y + 45, 0, true);
+          this.enemyFireLaser(this.boss.x - 55, this.boss.y + 30, -60);
+          this.enemyFireLaser(this.boss.x + 55, this.boss.y + 30, 60);
+
+          if (this.bossPhase >= 2) {
+            for (let i = 0; i < 4; i++) {
+              const bubble = this.enemyLasers.create(
+                this.boss.x + Phaser.Math.Between(-35, 35),
+                this.boss.y + 35,
+                'dirty_bubble'
+              );
+              bubble.setVelocity(
+                Phaser.Math.Between(-80, 80) * bSpeedMult,
+                Phaser.Math.Between(150, 220) * bSpeedMult
+              );
+            }
+          }
+        },
+        loop: true
+      });
+    }
+  }
+
+  bossDefeated() {
+    this.clearDialogue();
+    soundManager.playBoom(true);
+    this.cameras.main.shake(700, 0.035);
+    this.addScore(3000 * this.stage);
+
+    if (this.bossFireTimer) this.bossFireTimer.remove();
+
+    for (let i = 0; i < 14; i++) {
+      this.time.delayedCall(i * 65, () => {
+        this.createDefeatEffect(
+          this.boss.x + Phaser.Math.Between(-45, 45),
+          this.boss.y + Phaser.Math.Between(-45, 45)
+        );
+      });
+    }
+
+    this.tweens.add({
+      targets: this.boss,
+      alpha: 0,
+      scaleX: 1.5,
+      scaleY: 0.3,
+      duration: 800,
+      onComplete: () => {
+        this.boss.destroy();
+        this.bossHpContainer.setVisible(false);
+        this.handleStageCompletion();
+      }
+    });
+  }
+
+  handleStageCompletion() {
+    this.clearDialogue();
+
+    if (this.stage === 1) {
+      soundManager.playPowerUp();
+      this.showStoryDialogue('教頭先生', 'ally_pantsman', '「校長先生！助けていただき大感謝です！\n私もパンツの力で援護しますぞ！」', () => {
+        this.showStoryDialogue('パンツマン', 'pantsman', '「教頭先生、無事でよかった！\n共に屋上の偽ヒーローを止めに行くぞ！」', () => {
+          this.hasAlly = true;
+          this.allyLevel = 1;
+          this.ally = this.add.sprite(this.player.x - 32, this.player.y + 16, 'ally_pantsman').setDepth(18);
+          this.ally.setScale(0.9);
+
+          this.hp = Math.min(this.maxHp, this.hp + 40);
+          this.updateHpUI();
+          this.bombCount = Math.min(2, this.bombCount + 1);
+          this.bombHudText.setText(`🩲x${this.bombCount}`);
+
+          this.showComicText(this.cameras.main.width / 2, 200, 'STAGE 1 CLEAR!\n仲間が合流した！', '#4ade80');
+          this.time.delayedCall(1600, () => {
+            this.setStageTheme(2);
+          });
+        });
+      });
+    } else if (this.stage === 2) {
+      soundManager.playPowerUp();
+      this.showStoryDialogue('偽ヒーロー', 'boss_fakehero', '「グハッ…！白ブリーフの結束力に\n敗れるとは…！だが地下の巨大トイレが…！」', () => {
+        this.showStoryDialogue('パンツマン', 'pantsman', '「地下下水道か！全校生徒の平穏のため、\n元凶の巨大トイレを水に流すぞ！！」', () => {
+          this.hp = Math.min(this.maxHp, this.hp + 40);
+          this.updateHpUI();
+          this.bombCount = 2;
+          this.bombHudText.setText(`🩲x${this.bombCount}`);
+
+          this.showComicText(this.cameras.main.width / 2, 200, 'STAGE 2 CLEAR!\n最終ステージへ！', '#4ade80');
+          this.time.delayedCall(1600, () => {
+            this.setStageTheme(3);
+          });
+        });
+      });
+    } else if (this.stage === 3) {
+      // ★ 最終ステージクリア時：感動のエンディングシーンへ移行！
+      this.triggerEndingSequence();
+    }
+  }
+
+  // --- 最終ボス撃破後のエンディングシーン起動 ---
+  triggerEndingSequence() {
+    this.gameIsOver = true;
+    soundManager.stopBGM();
+    this.clearDialogue();
+
+    const clearSeconds = Math.floor((Date.now() - this.gameStartTime) / 1000);
+    let rank = 'C';
+    let title = '💧 お漏らし寸前校長';
+    if (this.totalDamageTaken === 0 || (this.totalReflects >= 25 && this.score >= 12000)) {
+      rank = 'S';
+      title = '👑 伝説のパンツマスター校長';
+    } else if (this.totalDamageTaken <= 60) {
+      rank = 'A';
+      title = '🌟 清潔なるブリーフの勇者';
+    } else {
+      rank = 'B';
+      title = '🎖️ 頼れる生活指導主任';
+    }
+
+    const prevHigh = parseInt(localStorage.getItem('pantsman_hiscore') || '0', 10);
+    const isNewRecord = this.score > prevHigh;
+    if (isNewRecord) {
+      localStorage.setItem('pantsman_hiscore', this.score);
+    }
+
+    this.time.delayedCall(700, () => {
+      this.scene.start('EndingScene', {
+        score: this.score,
+        isNewRecord: isNewRecord,
+        rank: rank,
+        title: title,
+        clearSeconds: clearSeconds,
+        totalReflects: this.totalReflects,
+        totalDamageTaken: this.totalDamageTaken,
+        difficulty: this.difficulty,
+        diffLabel: this.diffConfig.name
+      });
+    });
+  }
+
+  showComicText(x, y, text, color = '#facc15') {
+    const comic = this.add.text(x, y, text, {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '17px',
+      fontStyle: 'bold',
+      color: color,
+      stroke: '#000000',
+      strokeThickness: 4,
+      align: 'center'
+    }).setOrigin(0.5).setDepth(220);
+
+    this.tweens.add({
+      targets: comic,
+      y: y - 35,
+      scale: 1.15,
+      alpha: 0,
+      duration: 750,
+      ease: 'Power1',
+      onComplete: () => comic.destroy()
+    });
+  }
+
+  createDefeatEffect(x, y) {
+    const colors = [0xfacc15, 0xef4444, 0x38bdf8, 0x4ade80];
+    for (let i = 0; i < 9; i++) {
+      const p = this.add.circle(x, y, Phaser.Math.Between(4, 8), Phaser.Utils.Array.GetRandom(colors)).setDepth(45);
+      p.setBlendMode(Phaser.BlendModes.ADD);
+      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+      const spd = Phaser.Math.FloatBetween(90, 200);
+      this.physics.add.existing(p);
+      p.body.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
+
+      this.tweens.add({
+        targets: p,
+        alpha: 0,
+        scale: 0.1,
+        duration: 460,
+        onComplete: () => p.destroy()
+      });
+    }
+  }
+
+  addScore(amount) {
+    const mult = this.diffConfig ? this.diffConfig.scoreMult : 1.0;
+    this.score += Math.round(amount * mult);
+    this.scoreText.setText(`SCORE: ${this.score}`);
+  }
+
+  triggerGameOver(isVictory) {
+    this.gameIsOver = true;
+    soundManager.stopBGM();
+    this.clearDialogue();
+    if (this.spawnTimer) this.spawnTimer.remove();
+    if (this.bossFireTimer) this.bossFireTimer.remove();
+
+    const clearSeconds = Math.floor((Date.now() - this.gameStartTime) / 1000);
+    let rank = 'C';
+    let title = '💧 お漏らし寸前校長';
+    if (isVictory) {
+      if (this.totalDamageTaken === 0 || (this.totalReflects >= 25 && this.score >= 12000)) {
+        rank = 'S';
+        title = '👑 伝説のパンツマスター校長';
+      } else if (this.totalDamageTaken <= 60) {
+        rank = 'A';
+        title = '🌟 清潔なるブリーフの勇者';
+      } else {
+        rank = 'B';
+        title = '🎖️ 頼れる生活指導主任';
+      }
+    }
+
+    const prevHigh = parseInt(localStorage.getItem('pantsman_hiscore') || '0', 10);
+    const isNewRecord = this.score > prevHigh;
+    if (isNewRecord) {
+      localStorage.setItem('pantsman_hiscore', this.score);
+    }
+
+    this.time.delayedCall(700, () => {
+      this.scene.start('GameOverScene', {
+        score: this.score,
+        isVictory: isVictory,
+        isNewRecord: isNewRecord,
+        rank: rank,
+        title: title,
+        clearSeconds: clearSeconds,
+        totalReflects: this.totalReflects,
+        totalDamageTaken: this.totalDamageTaken,
+        clearedStage: this.stage,
+        difficulty: this.difficulty,
+        diffLabel: this.diffConfig.name
+      });
+    });
+  }
+
+  update(time, delta) {
+    if (this.isDialogueActive || this.isTransitionActive) return;
+
+    let vx = 0;
+    let vy = 0;
+
+    if (this.cursors.left.isDown || this.keyA.isDown || this.inputDir.left) vx -= 1;
+    if (this.cursors.right.isDown || this.keyD.isDown || this.inputDir.right) vx += 1;
+    if (this.cursors.up.isDown || this.keyW.isDown || this.inputDir.up) vy -= 1;
+    if (this.cursors.down.isDown || this.keyS.isDown || this.inputDir.down) vy += 1;
+
+    if (this.touchDragTarget) {
+      const dx = this.touchDragTarget.x - this.player.x;
+      const dy = this.touchDragTarget.y - this.player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 8) {
+        vx = dx / dist;
+        vy = dy / dist;
+      }
+    } else if (vx !== 0 && vy !== 0) {
+      vx *= 0.7071;
+      vy *= 0.7071;
+    }
+
+    this.player.setVelocity(vx * this.playerSpeed, vy * this.playerSpeed);
+    this.player.y = Phaser.Math.Clamp(this.player.y, 75, 480);
+
+    if (vx < 0) {
+      this.player.setAngle(-6);
+    } else if (vx > 0) {
+      this.player.setAngle(6);
+    } else {
+      this.player.setAngle(0);
+    }
+
+    if ((vx !== 0 || vy !== 0) && Math.random() < 0.25) {
+      const trail = this.add.circle(this.player.x + Phaser.Math.Between(-8, 8), this.player.y + 24, 2, 0xffffff, 0.6).setDepth(18);
+      trail.setBlendMode(Phaser.BlendModes.ADD);
+      this.tweens.add({
+        targets: trail,
+        alpha: 0,
+        scale: 0.1,
+        y: trail.y + 15,
+        duration: 250,
+        onComplete: () => trail.destroy()
+      });
+    }
+
+    if (this.hasAlly && this.ally) {
+      const targetX = this.player.x - 30;
+      const targetY = this.player.y + 14;
+      this.ally.x = Phaser.Math.Linear(this.ally.x, targetX, 0.2);
+      this.ally.y = Phaser.Math.Linear(this.ally.y, targetY, 0.2);
+    }
+
+    if (this.isPressingFire && (!this.bossSpawned || (this.boss && this.boss.isReady))) {
+      this.chargeDuration += delta;
+      const chargePct = Math.min(1, this.chargeDuration / 700);
+      this.chargeBarFill.width = 72 * chargePct;
+
+      if (chargePct >= 1 && !this.isChargeReady) {
+        this.isChargeReady = true;
+        this.chargeAura.setVisible(true);
+        if (!this.chargingSoundPlayed) {
+          soundManager.playCharging();
+          this.chargingSoundPlayed = true;
+        }
+      }
+    } else {
+      this.chargeBarFill.width = 0;
+    }
+
+    if (this.chargeAura && this.isChargeReady) {
+      this.chargeAura.x = this.player.x;
+      this.chargeAura.y = this.player.y - 10;
+      this.chargeAura.setScale(1 + Math.sin(time / 80) * 0.15);
+    }
+
+    this.bgStars.forEach(s => {
+      s.sprite.y += (s.speed * delta) / 1000;
+      if (s.sprite.y > 600) {
+        s.sprite.y = 0;
+        s.sprite.x = Phaser.Math.Between(0, 400);
+      }
+    });
+
+    this.playerBullets.children.each(b => {
+      if (b && (b.y < -30 || b.x < -30 || b.x > 430)) b.destroy();
+    });
+    this.allyBullets.children.each(b => {
+      if (b && (b.y < -30 || b.x < -30 || b.x > 430)) b.destroy();
+    });
+    this.reflectedBullets.children.each(b => {
+      if (b && (b.y < -30 || b.y > 630 || b.x < -30 || b.x > 430)) b.destroy();
+    });
+    this.enemyLasers.children.each(l => {
+      if (l && (l.y > 630 || l.x < -30 || l.x > 430)) l.destroy();
+    });
+    this.powerItems.children.each(i => {
+      if (i && (i.y > 630 || i.x < -30 || i.x > 430)) i.destroy();
+    });
+    this.healItems.children.each(h => {
+      if (h && (h.y > 630 || h.x < -30 || h.x > 430)) h.destroy();
+    });
+
+    if (this.shieldGlow) {
+      this.shieldGlow.x = this.player.x;
+      this.shieldGlow.y = this.player.y - 10;
+    }
+  }
+}
+
+// ===================================================================
+// 3. ★ 感動と笑いのエンディングシーン (EndingScene)
+// ===================================================================
+class EndingScene extends Phaser.Scene {
+  constructor() {
+    super('EndingScene');
+  }
+
+  init(data) {
+    this.score = data.score || 0;
+    this.isNewRecord = data.isNewRecord || false;
+    this.rank = data.rank || 'S';
+    this.title = data.title || '👑 伝説のパンツマスター校長';
+    this.clearSeconds = data.clearSeconds || 0;
+    this.totalReflects = data.totalReflects || 0;
+    this.totalDamageTaken = data.totalDamageTaken || 0;
+    this.difficulty = data.difficulty || 'normal';
+    this.diffLabel = data.diffLabel || 'NORMAL';
+  }
+
+  create() {
+    generateTextures(this);
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // フェーズ1: 巨大トイレ水洗シークエンスから開始
+    this.bg = this.add.image(width / 2, height / 2, 'bg_stage3').setDepth(0);
+    this.vignette = this.add.image(width / 2, height / 2, 'vignette').setDepth(50).setAlpha(0.65);
+
+    this.playFlushSequence();
+  }
+
+  // --- フェーズ1: 巨大トイレの完全水洗 ---
+  playFlushSequence() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    const toilet = this.add.image(width / 2, 210, 'boss_giant_toilet').setScale(1.15).setDepth(20);
+    const hero = this.add.image(width / 2 - 50, 390, 'pantsman').setScale(1.5).setDepth(25);
+    const ally = this.add.image(width / 2 + 50, 400, 'ally_pantsman').setScale(1.3).setDepth(24);
+
+    // 激しく震える巨大トイレ
+    this.tweens.add({
+      targets: toilet,
+      x: '+=6',
+      yoyo: true,
+      repeat: -1,
+      duration: 35
+    });
+
+    const dialogueCard = this.add.rectangle(width / 2, 490, 360, 80, 0x0f172a, 0.95).setDepth(30);
+    dialogueCard.setStrokeStyle(2, 0xfacc15);
+
+    const dialogText = this.add.text(width / 2, 490, 'パンツマン:「悪の元凶・巨大トイレめ！\nすべての罪を…水に流す時が来た！！」', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      align: 'center',
+      lineSpacing: 4
+    }).setOrigin(0.5).setDepth(31);
+
+    // 巨大な黄金水洗ボタン
+    const flushBtn = this.add.rectangle(width / 2, 305, 290, 48, 0xeab308)
+      .setInteractive({ useHandCursor: true }).setDepth(35);
+    flushBtn.setStrokeStyle(3, 0xffffff);
+
+    const flushBtnText = this.add.text(width / 2, 305, '🚽 水洗ボタンを押す！！ (TAP/SPACE)', {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '14px',
+      fontStyle: 'bold',
+      color: '#0f172a'
+    }).setOrigin(0.5).setDepth(36);
+
+    this.tweens.add({
+      targets: [flushBtn, flushBtnText],
+      scale: 1.08,
+      yoyo: true,
+      repeat: -1,
+      duration: 400
+    });
+
+    const doFlush = () => {
+      flushBtn.disableInteractive();
+      flushBtn.setVisible(false);
+      flushBtnText.setVisible(false);
+
+      soundManager.playFlush();
+      this.cameras.main.shake(1800, 0.035);
+
+      dialogText.setText('巨大トイレ:「バブバブバブ…ッ！\nき、綺麗になっちゃうううう！！（消滅）」');
+
+      // 渦巻き水流パーティクル
+      for (let i = 0; i < 40; i++) {
+        this.time.delayedCall(i * 45, () => {
+          const drop = this.add.circle(
+            width / 2 + Phaser.Math.Between(-90, 90),
+            210 + Phaser.Math.Between(-60, 60),
+            Phaser.Math.Between(4, 9),
+            0x38bdf8
+          ).setDepth(22);
+          drop.setBlendMode(Phaser.BlendModes.ADD);
+
+          this.tweens.add({
+            targets: drop,
+            x: width / 2,
+            y: 210,
+            scale: 0,
+            duration: 600,
+            ease: 'Cubic.easeIn',
+            onComplete: () => drop.destroy()
+          });
+        });
+      }
+
+      // 巨大トイレが回転しながら吸い込まれて消滅！
+      this.tweens.add({
+        targets: toilet,
+        angle: 1440,
+        scale: 0,
+        duration: 2100,
+        ease: 'Cubic.easeIn',
+        onComplete: () => {
+          toilet.destroy();
+
+          // 画面全体が真っ白に光って朝焼けへ転換
+          this.cameras.main.flash(900, 255, 255, 255);
+          dialogueCard.destroy();
+          dialogText.destroy();
+          hero.destroy();
+          ally.destroy();
+
+          this.time.delayedCall(700, () => {
+            this.playCelebrationSequence();
+          });
+        }
+      });
+    };
+
+    flushBtn.on('pointerdown', doFlush);
+    this.input.keyboard.once('keydown-SPACE', doFlush);
+    this.input.keyboard.once('keydown-ENTER', doFlush);
+  }
+
+  // --- フェーズ2: 朝焼けの学校・トイレットペーパー吹雪＆朝礼スピーチ ---
+  playCelebrationSequence() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // 背景を晴れやかな青空の学校へ
+    this.bg.setTexture('bg_ending');
+    soundManager.playBGM('ending');
+
+    // トイレットペーパーの紙吹雪を降らせる
+    this.confettiGroup = [];
+    this.confettiTimer = this.time.addEvent({
+      delay: 110,
+      callback: () => {
+        const p = this.add.image(Phaser.Math.Between(10, width - 10), -20, 'confetti_paper')
+          .setDepth(15).setScale(Phaser.Math.FloatBetween(0.8, 1.3));
+        p.setAngle(Phaser.Math.Between(0, 360));
+
+        this.tweens.add({
+          targets: p,
+          y: height + 30,
+          x: p.x + Phaser.Math.Between(-40, 40),
+          angle: p.angle + Phaser.Math.Between(180, 540),
+          duration: Phaser.Math.Between(2600, 4200),
+          onComplete: () => p.destroy()
+        });
+      },
+      loop: true
+    });
+
+    // 朝礼台の上に立つパンツマン＆教頭先生
+    const hero = this.add.image(width / 2 - 40, 395, 'pantsman').setScale(1.7).setDepth(20);
+    const ally = this.add.image(width / 2 + 40, 410, 'ally_pantsman').setScale(1.4).setDepth(19);
+
+    this.tweens.add({
+      targets: [hero, ally],
+      y: '-=6',
+      yoyo: true,
+      repeat: -1,
+      duration: 600,
+      ease: 'Sine.easeInOut'
+    });
+
+    // 生徒たちの歓声バナー
+    const cheerBanner = this.add.rectangle(width / 2, 75, 360, 55, 0x0284c7, 0.95).setDepth(30);
+    cheerBanner.setStrokeStyle(2, 0xffffff);
+    const cheerText = this.add.text(width / 2, 75, '全校生徒:「わあああ！ ペーパーが戻ったー！」\n「ありがとうパンツマン！ ありがとう教頭先生！」', {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      align: 'center',
+      lineSpacing: 4
+    }).setOrigin(0.5).setDepth(31);
+
+    // 朝礼スピーチ会話送り
+    const speechLines = [
+      {
+        speaker: '校長先生（パンツマン）',
+        text: '「コホン！ 生徒の諸君、おはよう！\nトイレットペーパーの危機は去った！\n白ブリーフのように清く真っ白な心で学ぶのだ！」'
+      },
+      {
+        speaker: '教頭先生',
+        text: '「校長先生、お見事な演説です！\n……ところで校長先生、ズボンはいつ履かれるのですか？」'
+      },
+      {
+        speaker: '校長先生（パンツマン）',
+        text: '「…………ハッ！！！\n履くのをすっかり忘れておったーーーーーっ！！！」'
+      }
+    ];
+
+    let currentLine = 0;
+
+    const dialogBox = this.add.rectangle(width / 2, 490, 360, 85, 0x0f172a, 0.96).setDepth(30);
+    dialogBox.setStrokeStyle(2.5, 0xfacc15);
+
+    const speakerText = this.add.text(32, 460, speechLines[0].speaker, {
+      fontSize: '11.5px',
+      fontStyle: 'bold',
+      color: '#facc15'
+    }).setDepth(31);
+
+    const contentText = this.add.text(width / 2, 502, speechLines[0].text, {
+      fontSize: '11px',
+      color: '#ffffff',
+      align: 'center',
+      lineSpacing: 4
+    }).setOrigin(0.5).setDepth(31);
+
+    const nextPrompt = this.add.text(width - 35, 520, '▼ [TAP]', {
+      fontSize: '9px',
+      color: '#94a3b8'
+    }).setOrigin(1, 0.5).setDepth(31);
+
+    const nextSpeech = () => {
+      soundManager.playSnap();
+      currentLine++;
+      if (currentLine < speechLines.length) {
+        speakerText.setText(speechLines[currentLine].speaker);
+        contentText.setText(speechLines[currentLine].text);
+      } else {
+        dialogBox.destroy();
+        speakerText.destroy();
+        contentText.destroy();
+        nextPrompt.destroy();
+        cheerBanner.destroy();
+        cheerText.destroy();
+        this.playCreditsSequence();
+      }
+    };
+
+    dialogBox.setInteractive({ useHandCursor: true }).on('pointerdown', nextSpeech);
+    this.input.keyboard.on('keydown-SPACE', nextSpeech);
+    this.input.keyboard.on('keydown-ENTER', nextSpeech);
+  }
+
+  // --- フェーズ3: キャスト紹介 & スタッフロール ---
+  playCreditsSequence() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    const card = this.add.rectangle(width / 2, 280, 360, 330, 0x090e17, 0.94).setDepth(40);
+    card.setStrokeStyle(2, 0x38bdf8);
+
+    const congratsText = this.add.text(width / 2, 145, '🎉 ALL STAGES CLEARED!! 🎉', {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '20px',
+      fontStyle: 'bold',
+      color: '#facc15',
+      stroke: '#e11d48',
+      strokeThickness: 5
+    }).setOrigin(0.5).setDepth(41);
+
+    const rollText =
+      '【 CAST & STAFF 】\n\n' +
+      '★ 主演: 校長先生 / パンツマン\n' +
+      '★ 助演: 教頭先生 / ちびパンツマン\n' +
+      '★ 敵役: トイレマン / 偽パンツヒーロー / 巨大トイレ\n' +
+      '★ 大群: ステテコおじさん / 部長おじさん / ボーナスおじさん\n' +
+      '★ 特別協力: 全校生徒のトイレットペーパー (10,000ロール)\n\n' +
+      'THANKS FOR PLAYING!!';
+
+    this.add.text(width / 2, 260, rollText, {
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: '#f8fafc',
+      align: 'center',
+      lineSpacing: 5
+    }).setOrigin(0.5).setDepth(41);
+
+    const resultBtn = this.add.rectangle(width / 2, 400, 290, 48, 0x2563eb)
+      .setInteractive({ useHandCursor: true }).setDepth(42);
+    resultBtn.setStrokeStyle(3, 0xffffff);
+
+    this.add.text(width / 2, 400, '★ 最終結果発表へ進む [SPACE] ★', {
+      fontSize: '14px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(43);
+
+    const toResult = () => {
+      soundManager.playSnap();
+      if (this.confettiTimer) this.confettiTimer.remove();
+      this.scene.start('GameOverScene', {
+        score: this.score,
+        isVictory: true,
+        isNewRecord: this.isNewRecord,
+        rank: this.rank,
+        title: this.title,
+        clearSeconds: this.clearSeconds,
+        totalReflects: this.totalReflects,
+        totalDamageTaken: this.totalDamageTaken,
+        clearedStage: 3,
+        difficulty: this.difficulty,
+        diffLabel: this.diffLabel
+      });
+    };
+
+    resultBtn.on('pointerdown', toResult);
+    this.input.keyboard.once('keydown-SPACE', toResult);
+    this.input.keyboard.once('keydown-ENTER', toResult);
+  }
+}
+
+// ===================================================================
+// 4. ゲームオーバー / 完全クリア結果発表シーン
+// ===================================================================
+class GameOverScene extends Phaser.Scene {
+  constructor() {
+    super('GameOverScene');
+  }
+
+  init(data) {
+    this.finalScore = data.score || 0;
+    this.isVictory = data.isVictory || false;
+    this.isNewRecord = data.isNewRecord || false;
+    this.rank = data.rank || 'C';
+    this.title = data.title || '💧 お漏らし寸前校長';
+    this.clearSeconds = data.clearSeconds || 0;
+    this.totalReflects = data.totalReflects || 0;
+    this.totalDamageTaken = data.totalDamageTaken || 0;
+    this.clearedStage = data.clearedStage || 1;
+    this.difficulty = data.difficulty || 'normal';
+    this.diffLabel = data.diffLabel || 'NORMAL';
+  }
+
+  create() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    this.add.rectangle(width / 2, height / 2, width, height, 0x090e17, 0.95);
+    this.add.image(width / 2, height / 2, 'vignette').setDepth(10).setAlpha(0.7);
+
+    const titleText = this.isVictory ? '🎉 全3面完全制覇！！ 🎉' : 'GAME OVER';
+    const titleColor = this.isVictory ? '#facc15' : '#ef4444';
+
+    this.add.text(width / 2, 50, titleText, {
+      fontFamily: '"Impact", "Hiragino Kaku Gothic ProN", sans-serif',
+      fontSize: '24px',
+      fontStyle: 'bold',
+      color: titleColor,
+      stroke: '#000000',
+      strokeThickness: 5
+    }).setOrigin(0.5).setDepth(20);
+
+    const diffColors = { easy: '#34d399', normal: '#38bdf8', hard: '#f87171' };
+    const dColor = diffColors[this.difficulty] || '#38bdf8';
+    this.add.text(width / 2, 80, `[ 難易度モード: ${this.diffLabel} ]`, {
+      fontSize: '12px',
+      fontStyle: 'bold',
+      color: dColor,
+      backgroundColor: '#0f172a',
+      padding: { x: 8, y: 3 }
+    }).setOrigin(0.5).setDepth(20);
+
+    const rankColors = { 'S': '#facc15', 'A': '#38bdf8', 'B': '#22c55e', 'C': '#94a3b8' };
+    const rColor = rankColors[this.rank] || '#fff';
+
+    const rankBox = this.add.rectangle(width / 2, 122, 110, 40, 0x1e293b).setDepth(20);
+    rankBox.setStrokeStyle(3, Phaser.Display.Color.HexStringToColor(rColor).color);
+
+    this.add.text(width / 2, 122, `RANK: ${this.rank}`, {
+      fontSize: '20px',
+      fontStyle: 'bold',
+      color: rColor
+    }).setOrigin(0.5).setDepth(21);
+
+    this.add.text(width / 2, 155, this.title, {
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#ffffff',
+      backgroundColor: '#1e293b',
+      padding: { x: 10, y: 4 }
+    }).setOrigin(0.5).setDepth(20);
+
+    const board = this.add.rectangle(width / 2, 280, 330, 160, 0x0f172a, 0.9).setDepth(20);
+    board.setStrokeStyle(1.5, 0x38bdf8);
+
+    this.add.text(width / 2, 225, `SCORE: ${this.finalScore} pt`, {
+      fontSize: '22px',
+      fontStyle: 'bold',
+      color: '#facc15'
+    }).setOrigin(0.5).setDepth(21);
+
+    const hiScore = localStorage.getItem('pantsman_hiscore') || 0;
+    this.add.text(width / 2, 252, `BEST SCORE: ${hiScore} pt`, {
+      fontSize: '13px',
+      color: '#94a3b8'
+    }).setOrigin(0.5).setDepth(21);
+
+    const statsText =
+      `到達ステージ: STAGE ${this.clearedStage} / 3\n` +
+      `クリアタイム: ${this.clearSeconds} 秒\n` +
+      `マント反射成功: ${this.totalReflects} 回\n` +
+      `被ダメージ総量: ${this.totalDamageTaken} pt`;
+
+    this.add.text(width / 2, 308, statsText, {
+      fontSize: '11.5px',
+      color: '#e2e8f0',
+      align: 'center',
+      lineSpacing: 4
+    }).setOrigin(0.5).setDepth(21);
+
+    if (this.isNewRecord) {
+      const recordBadge = this.add.text(width / 2, 375, '✨ NEW RECORD! ハイスコア達成! ✨', {
+        fontSize: '12px',
+        fontStyle: 'bold',
+        color: '#facc15',
+        backgroundColor: '#854d0e',
+        padding: { x: 8, y: 4 }
+      }).setOrigin(0.5).setDepth(21);
+
+      this.tweens.add({
+        targets: recordBadge,
+        scale: 1.08,
+        yoyo: true,
+        repeat: -1,
+        duration: 400
+      });
+    }
+
+    const retryBtn = this.add.rectangle(width / 2, 440, 260, 48, 0x2563eb)
+      .setInteractive({ useHandCursor: true }).setDepth(20);
+    retryBtn.setStrokeStyle(3, 0xffffff);
+
+    this.add.text(width / 2, 440, `もう一度 [${this.diffLabel}] [Enter/Space]`, {
+      fontSize: '13.5px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(21);
+
+    const titleBtn = this.add.rectangle(width / 2, 502, 260, 42, 0x334155)
+      .setInteractive({ useHandCursor: true }).setDepth(20);
+    this.add.text(width / 2, 502, 'タイトル画面へ [T]', {
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#ffffff'
+    }).setOrigin(0.5).setDepth(21);
+
+    const doRetry = () => {
+      soundManager.playSnap();
+      this.scene.start('GameScene', { difficulty: this.difficulty });
+    };
+
+    const doTitle = () => {
+      soundManager.playSnap();
+      this.scene.start('TitleScene');
+    };
+
+    retryBtn.on('pointerdown', doRetry);
+    titleBtn.on('pointerdown', doTitle);
+
+    this.input.keyboard.on('keydown-ENTER', doRetry);
+    this.input.keyboard.on('keydown-SPACE', doRetry);
+    this.input.keyboard.on('keydown-T', doTitle);
+  }
+}
+
+// ===================================================================
+// Phaser設定 & 起動
+// ===================================================================
+const config = {
+  type: Phaser.AUTO,
+  parent: 'game-container',
+  width: 400,
+  height: 600,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH
+  },
+  physics: {
+    default: 'arcade',
+    arcade: {
+      gravity: { y: 0 },
+      debug: false
+    }
+  },
+  scene: [TitleScene, GameScene, EndingScene, GameOverScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+</body>
+</html>
