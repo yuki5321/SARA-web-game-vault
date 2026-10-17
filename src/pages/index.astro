@@ -41,7 +41,7 @@ const description = "インストール不要、ブラウザですぐ遊べる�
           <p class="font-editorial text-xs italic tracking-[0.18em] text-[#B86B4B] uppercase">Cafe Note</p>
           <p class="mt-2 font-['Shippori_Mincho',serif] text-sm font-semibold text-[#2C221E]">本日のおすすめブレンド</p>
           <p class="mt-1.5 text-xs leading-relaxed text-[#6E5D53]">
-            現在 <strong class="text-[#2C221E]">{games.length}作品</strong> をラインナップ中。レトロで爽快なシューティングをお楽しみください。
+            現在 <strong class="text-[#2C221E]">{games.length}作品</strong> をラインナップ中。個性豊かなアクション＆シューティングをお楽しみください。
           </p>
           <div class="mt-3 border-t border-dashed border-[#E6DEC8] pt-2.5 text-[11px] tracking-widest text-[#9C8B7E] uppercase">
             Open 24/7 · Free Entry
@@ -70,9 +70,9 @@ const description = "インストール不要、ブラウザですぐ遊べる�
 
     {games.length > 0 ? (
       <div id="game-grid" class="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {games.map((game) => (
+        {games.map((game, index) => (
           <div class="game-entry" data-tags={game.tags.join("|")}>
-            <GameCard game={game} />
+            <GameCard game={game} index={index} />
           </div>
         ))}
       </div>

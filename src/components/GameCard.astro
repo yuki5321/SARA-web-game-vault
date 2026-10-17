@@ -1,7 +1,8 @@
 ---
 import type { Game } from "../lib/games";
 
-const { game } = Astro.props as { game: Game };
+const { game, index = 0 } = Astro.props as { game: Game; index?: number };
+const menuNumber = String(index + 1).padStart(2, "0");
 ---
 
 <article class="surface group relative flex flex-col overflow-hidden p-3 transition duration-300 hover:-translate-y-1 hover:border-[#C5B49E] hover:shadow-xl">
@@ -10,7 +11,10 @@ const { game } = Astro.props as { game: Game };
       {game.thumbnail ? (
         <img src={game.thumbnail} alt="" loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
       ) : (
-        <div class="font-editorial grid h-full place-items-center text-4xl italic text-[#9C8B7E]" aria-hidden="true">Play</div>
+        <div class="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-[#F3EFE6] to-[#E6DEC8]/50 p-4 text-center" aria-hidden="true">
+          <span class="font-editorial text-3xl italic text-[#B86B4B]">SARA Blend</span>
+          <span class="text-xs font-bold tracking-widest text-[#6E5D53]">{game.tags[0]}</span>
+        </div>
       )}
       <span class="font-editorial absolute top-3 left-3 rounded-full border border-[#E6DEC8] bg-[#FBF9F5]/95 px-3 py-0.5 text-xs font-semibold italic tracking-widest text-[#2C221E] shadow-xs backdrop-blur-xs">
         Signature
@@ -19,7 +23,7 @@ const { game } = Astro.props as { game: Game };
     <div class="flex flex-1 flex-col justify-between px-2 pt-4 pb-2">
       <div>
         <div class="flex items-center justify-between gap-2 text-[11px] tracking-widest text-[#9C8B7E] uppercase">
-          <span>No. 01</span>
+          <span>No. {menuNumber}</span>
           <span>{game.publishedAt.replaceAll("-", ".")}</span>
         </div>
         <h3 class="mt-1.5 text-lg font-bold tracking-tight text-[#2C221E] transition group-hover:text-[#B86B4B]">{game.title}</h3>

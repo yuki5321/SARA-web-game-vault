@@ -1,0 +1,2591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>スペースキャット vs ネズミ宇宙人 (横スクロールアクション)</title>
+    <style>
+:root {
+    --bg-dark: #070913;
+    --neon-blue: #00f0ff;
+    --neon-pink: #ff2a85;
+    --neon-yellow: #ffe600;
+    --neon-green: #39ff14;
+    --neon-purple: #9d4edd;
+    --card-bg: rgba(16, 20, 38, 0.88);
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, 'Hiragino Sans', 'Meiryo';
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: #fff;
+    font-family: var(--font-family);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow-x: hidden;
+    background: radial-gradient(circle at 50% 10%, #171b38 0%, #06070e 100%);
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    max-width: 860px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* ヘッダー・HUD */
+.game-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--card-bg);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hud-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.hud-label {
+    color: #a0aec0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.hud-value {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.heart {
+    color: #ff3366;
+    font-size: 18px;
+    filter: drop-shadow(0 0 4px rgba(255, 51, 102, 0.8));
+    transition: transform 0.2s;
+}
+
+.heart.lost {
+    color: #4a5568;
+    filter: none;
+    transform: scale(0.8);
+}
+
+.coin-box {
+    color: var(--neon-yellow);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    filter: drop-shadow(0 0 6px rgba(255, 230, 0, 0.5));
+}
+
+.key-box {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.key-box.has-key {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.2);
+    border: 1px solid #ffd700;
+    animation: keyGlow 1.5s infinite alternate;
+}
+
+.key-box.no-key {
+    color: #64748b;
+    opacity: 0.6;
+}
+
+@keyframes keyGlow {
+    from { box-shadow: 0 0 5px #ffd700; }
+    to { box-shadow: 0 0 15px #ffd700, 0 0 25px rgba(255, 215, 0, 0.6); }
+}
+
+/* 無敵モードバナー */
+#invincible-banner {
+    display: none;
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, #ff007f, #ffaa00, #00f0ff, #ff007f);
+    background-size: 300% 300%;
+    animation: rainbowGrad 2s ease infinite;
+    padding: 6px 20px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
+    z-index: 20;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.9);
+}
+
+@keyframes rainbowGrad {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* キャンバスエリア（横スクロール 16:9比率） */
+#canvas-wrapper {
+    position: relative;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 240, 255, 0.2);
+    border: 2px solid rgba(0, 240, 255, 0.4);
+    background: #000;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    image-rendering: pixelated;
+}
+
+/* モーダル・オーバーレイ */
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 10, 20, 0.88);
+    backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    z-index: 30;
+    border-radius: 12px;
+}
+
+.modal-content {
+    max-width: 540px;
+    animation: popIn 0.3s ease-out;
+}
+
+@keyframes popIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.title-main {
+    font-size: 30px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #00f0ff, #ff007f);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.subtitle {
+    font-size: 15px;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+}
+
+.rules-list {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    text-align: left;
+    font-size: 13px;
+    line-height: 1.8;
+}
+
+.rules-list li {
+    list-style: none;
+    position: relative;
+    padding-left: 24px;
+}
+
+.rules-list li::before {
+    position: absolute;
+    left: 0;
+}
+
+.rule-slash::before { content: "✨"; }
+.rule-coin::before { content: "🪙"; }
+.rule-key::before { content: "🔑"; }
+.rule-door::before { content: "🚀"; }
+
+.btn {
+    background: linear-gradient(135deg, #ff007f, #9d4edd);
+    border: none;
+    color: white;
+    padding: 12px 34px;
+    font-size: 18px;
+    font-weight: 800;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 20px rgba(255, 0, 127, 0.6);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-sound {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.btn-sound:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* 操作説明フッター */
+.controls-hint {
+    margin-top: 10px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    color: #94a3b8;
+    font-size: 13px;
+    text-align: center;
+    flex-wrap: wrap;
+}
+
+.key-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: #fff;
+    font-weight: bold;
+}
+
+/* スマホ用タッチ操作パネル（マリオ風レイアウト） */
+.touch-controls {
+    display: none;
+    width: 100%;
+    margin-top: 12px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+}
+
+@media (max-width: 768px) {
+    .touch-controls {
+        display: flex;
+    }
+}
+
+.d-pad-horizontal {
+    display: flex;
+    gap: 12px;
+}
+
+.d-btn-large {
+    width: 64px;
+    height: 64px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.d-btn-large:active {
+    background: var(--neon-blue);
+    color: #000;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 14px;
+}
+
+.btn-action-shot {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00f0ff, #0088ff);
+    border: 2px solid #fff;
+    color: #fff;
+    font-size: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 240, 255, 0.4);
+}
+
+.btn-action-jump {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff007f, #ff758c);
+    border: 2px solid #fff;
+    color: #fff;
+    font-size: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);
+}
+
+.btn-action-shot span, .btn-action-jump span {
+    font-size: 10px;
+}
+
+.btn-action-shot:active, .btn-action-jump:active {
+    transform: scale(0.92);
+}
+
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <!-- HUD ヘッダー -->
+        <header class="game-header">
+            <div class="hud-item">
+                <span class="hud-label">HP</span>
+                <div class="hud-value" id="hp-container">
+                    <span class="heart">❤️</span>
+                    <span class="heart">❤️</span>
+                    <span class="heart">❤️</span>
+                </div>
+            </div>
+
+            <div class="hud-item">
+                <span class="hud-label">COINS</span>
+                <div class="hud-value coin-box">
+                    <span>🪙</span>
+                    <span id="coin-count">0</span>/10
+                </div>
+            </div>
+
+            <div class="hud-item">
+                <div class="key-box no-key" id="key-status">
+                    <span>🔑</span>
+                    <span id="key-text">未所持</span>
+                </div>
+            </div>
+
+            <div class="hud-item">
+                <span class="hud-label">STAGE</span>
+                <span id="stage-num" style="color: var(--neon-blue); font-weight: 800;">1</span>
+            </div>
+
+            <div class="hud-item">
+                <span class="hud-label">SCORE</span>
+                <span id="score-val" style="color: #fff; font-weight: 800;">0</span>
+            </div>
+
+            <button class="btn-sound" id="mute-btn">🔊 サウンドON</button>
+        </header>
+
+        <!-- 無敵中バナー -->
+        <div id="invincible-banner">
+            ⚡ 無敵モード発動中！ 残り <span id="invincible-timer">30.0</span>秒 ⚡
+        </div>
+
+        <!-- キャンバス本体 (16:9 横スクロール) -->
+        <div id="canvas-wrapper">
+            <canvas id="gameCanvas" width="800" height="450"></canvas>
+
+            <!-- スタート画面 -->
+            <div id="start-modal" class="modal-overlay">
+                <div class="modal-content">
+                    <h1 class="title-main">🐾 スペースキャット 🐾<br>ネズミ宇宙人の侵略惑星</h1>
+                    <p class="subtitle">放出スラッシュショット＆ジャンプで進む横スクロール大冒険！</p>
+                    <ul class="rules-list">
+                        <li class="rule-slash"><strong>放出攻撃</strong>（または踏みつけ）でネズミ宇宙人を倒そう！</li>
+                        <li class="rule-coin">敵から落ちる<strong>コインを10枚集めると30秒間【無敵モード】</strong>！<br>（突進で敵粉砕＆極太貫通ビームにパワーアップ！）</li>
+                        <li class="rule-key">敵やキーキャリアーから<strong>【カギ】</strong>をゲット！</li>
+                        <li class="rule-door">右奥の<strong>【脱出ゲート（扉）】</strong>を開いてステージクリア！</li>
+                    </ul>
+                    <button class="btn" id="start-btn">ゲームスタート！</button>
+                </div>
+            </div>
+
+            <!-- ステージクリア画面 -->
+            <div id="clear-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <h1 class="title-main" style="color: var(--neon-yellow);">🎉 STAGE CLEAR! 🎉</h1>
+                    <p class="subtitle">カギで脱出ゲートを開いて脱出成功！</p>
+                    <div style="font-size: 18px; margin-bottom: 20px; line-height: 1.8;">
+                        <div>獲得スコア: <span id="clear-score" style="color: var(--neon-blue); font-weight: bold;">0</span></div>
+                        <div>倒したネズミ宇宙人: <span id="clear-enemies" style="color: var(--neon-pink); font-weight: bold;">0</span>匹</div>
+                    </div>
+                    <button class="btn" id="next-stage-btn">次のステージへ進む 🚀</button>
+                </div>
+            </div>
+
+            <!-- ゲームオーバー画面 -->
+            <div id="gameover-modal" class="modal-overlay" style="display: none;">
+                <div class="modal-content">
+                    <h1 class="title-main" style="color: #ff3366;">💀 GAME OVER 💀</h1>
+                    <p class="subtitle">体力が尽きてしまった…！</p>
+                    <div style="font-size: 18px; margin-bottom: 20px;">
+                        最終スコア: <span id="gameover-score" style="color: var(--neon-blue); font-weight: bold;">0</span>
+                    </div>
+                    <button class="btn" id="restart-btn">もう一度挑戦する 🐾</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作説明 -->
+        <div class="controls-hint">
+            <div><span class="key-badge">A / D</span> または <span class="key-badge">← / →</span> : 移動</div>
+            <div><span class="key-badge">Space</span> / <span class="key-badge">W</span> / <span class="key-badge">↑</span> : ジャンプ</div>
+            <div><span class="key-badge">J</span> / <span class="key-badge">X</span> / <span class="key-badge">Z</span> または <span class="key-badge">左クリック</span> : 放出攻撃（ツメ衝撃波）</div>
+            <div>敵を踏みつけて倒すことも可能！</div>
+        </div>
+
+        <!-- スマホ用タッチ操作 -->
+        <div class="touch-controls">
+            <div class="d-pad-horizontal">
+                <button class="d-btn-large" id="touch-left">◀</button>
+                <button class="d-btn-large" id="touch-right">▶</button>
+            </div>
+            <div class="action-buttons">
+                <button class="btn-action-shot" id="touch-shot">
+                    ⚡
+                    <span>放出</span>
+                </button>
+                <button class="btn-action-jump" id="touch-jump">
+                    🐾
+                    <span>ジャンプ</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- スクリプト完全インライン内包 -->
+    <script>
+// Web Audio API Procedural Sound Engine for Cat vs Alien Mice (Platformer Edition)
+class SoundEngine {
+    constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.isInvincible = false;
+        this.initialized = false;
+    }
+
+    init() {
+        if (this.initialized) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        this.ctx = new AudioContext();
+        this.initialized = true;
+        this.startBgm();
+    }
+
+    resume() {
+        if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    }
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        return this.isMuted;
+    }
+
+    // ジャンプ音（ポヨーン）
+    playJump() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.14);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    }
+
+    // 放出攻撃音（シュバッ！レーザー爪衝撃波）
+    playShoot(isHyper = false) {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        // ノイズスウィープ
+        const bufferSize = this.ctx.sampleRate * 0.1;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(isHyper ? 4500 : 3200, now);
+        filter.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(isHyper ? 0.35 : 0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+        noise.stop(now + 0.11);
+
+        // トーンスウィープ
+        const osc = this.ctx.createOscillator();
+        const oscGain = this.ctx.createGain();
+        osc.type = isHyper ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(isHyper ? 1200 : 880, now);
+        osc.frequency.exponentialRampToValueAtTime(isHyper ? 300 : 250, now + 0.12);
+
+        oscGain.gain.setValueAtTime(isHyper ? 0.25 : 0.18, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        osc.connect(oscGain);
+        oscGain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.13);
+    }
+
+    // 踏みつけ音
+    playStomp() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.1);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.11);
+    }
+
+    // コイン取得音
+    playCoin() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(987.77, now); // B5
+        osc.frequency.setValueAtTime(1318.51, now + 0.08); // E6
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.32);
+    }
+
+    // 鍵取得音
+    playKey() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+
+            const startTime = now + idx * 0.08;
+            gain.gain.setValueAtTime(0.3, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.35);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + 0.36);
+        });
+    }
+
+    // 10コイン集めた時の無敵発動
+    playInvincibleStart() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.51, 1760];
+
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+
+            const startTime = now + idx * 0.05;
+            gain.gain.setValueAtTime(0.2, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + 0.26);
+        });
+    }
+
+    // 敵撃破音
+    playEnemyDefeat() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+
+        osc.frequency.setValueAtTime(360, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.16);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.17);
+    }
+
+    // 猫ダメージ音（ニャーッ！）
+    playCatHurt() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+
+        osc.frequency.setValueAtTime(460, now);
+        osc.frequency.linearRampToValueAtTime(780, now + 0.07);
+        osc.frequency.exponentialRampToValueAtTime(280, now + 0.3);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.31);
+    }
+
+    // 回復音
+    playHeal() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+
+        osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+    }
+
+    // 扉解錠音
+    playDoorOpen() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(140, now);
+        osc1.frequency.linearRampToValueAtTime(60, now + 0.5);
+        gain1.gain.setValueAtTime(0.4, now);
+        gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.6);
+
+        [523.25, 659.25, 783.99, 1046.5, 1318.51].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + 0.1 + idx * 0.08);
+
+            const st = now + 0.1 + idx * 0.08;
+            gain.gain.setValueAtTime(0.25, st);
+            gain.gain.exponentialRampToValueAtTime(0.01, st + 0.5);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(st);
+            osc.stop(st + 0.55);
+        });
+    }
+
+    // クリア音
+    playClear() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const melody = [
+            { f: 523.25, t: 0.0, d: 0.12 },
+            { f: 659.25, t: 0.12, d: 0.12 },
+            { f: 783.99, t: 0.24, d: 0.12 },
+            { f: 1046.5, t: 0.36, d: 0.3 },
+            { f: 880.0,  t: 0.68, d: 0.15 },
+            { f: 1046.5, t: 0.85, d: 0.5 }
+        ];
+
+        melody.forEach(item => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(item.f, now + item.t);
+
+            const st = now + item.t;
+            gain.gain.setValueAtTime(0.3, st);
+            gain.gain.exponentialRampToValueAtTime(0.01, st + item.d);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(st);
+            osc.stop(st + item.d + 0.05);
+        });
+    }
+
+    // ゲームオーバー音
+    playGameOver() {
+        if (this.isMuted || !this.ctx) return;
+        this.resume();
+        const now = this.ctx.currentTime;
+        const melody = [
+            { f: 440, t: 0.0, d: 0.25 },
+            { f: 415.3, t: 0.25, d: 0.25 },
+            { f: 392, t: 0.5, d: 0.3 },
+            { f: 349.2, t: 0.8, d: 0.6 }
+        ];
+
+        melody.forEach(item => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(item.f, now + item.t);
+
+            const st = now + item.t;
+            gain.gain.setValueAtTime(0.2, st);
+            gain.gain.exponentialRampToValueAtTime(0.01, st + item.d);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(st);
+            osc.stop(st + item.d + 0.05);
+        });
+    }
+
+    // BGM（横スクロールにぴったりな軽快チップチューン）
+    startBgm() {
+        if (this.bgmTimer) return;
+        const stepInterval = 130;
+
+        // 横スクロール向けのアドベンチャーメロディ
+        const baseMelody = [
+            329.63, 329.63, 0, 329.63, 0, 261.63, 329.63, 0,
+            392.00, 0, 0, 0, 196.00, 0, 0, 0,
+            261.63, 0, 0, 196.00, 0, 0, 164.81, 0,
+            220.00, 0, 246.94, 0, 233.08, 220.00, 0, 196.00
+        ];
+
+        const invincMelody = [
+            523.25, 659.25, 783.99, 1046.5, 783.99, 659.25, 523.25, 659.25,
+            440.00, 554.37, 659.25, 880.00, 659.25, 554.37, 440.00, 554.37,
+            349.23, 440.00, 523.25, 698.46, 523.25, 440.00, 349.23, 440.00,
+            392.00, 493.88, 587.33, 783.99, 880.00, 987.77, 1046.5, 1174.66
+        ];
+
+        this.bgmTimer = setInterval(() => {
+            if (this.isMuted || !this.ctx || this.ctx.state !== 'running') return;
+            const now = this.ctx.currentTime;
+            const melody = this.isInvincible ? invincMelody : baseMelody;
+            const freq = melody[this.bgmStep % melody.length];
+
+            if (freq > 0) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = this.isInvincible ? 'triangle' : 'square';
+                osc.frequency.setValueAtTime(freq * (this.isInvincible ? 1 : 0.5), now);
+
+                const dur = this.isInvincible ? 0.09 : 0.1;
+                const vol = this.isInvincible ? 0.08 : 0.04;
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + dur + 0.02);
+            }
+
+            // 無敵時の疾走ビート
+            if (this.isInvincible && this.bgmStep % 2 === 0) {
+                const bufferSize = this.ctx.sampleRate * 0.03;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = (Math.random() * 2 - 1) * 0.06;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                noise.connect(this.ctx.destination);
+                noise.start(now);
+            }
+
+            this.bgmStep++;
+        }, stepInterval);
+    }
+
+    setInvincible(state) {
+        this.isInvincible = state;
+    }
+}
+
+window.soundEngine = new SoundEngine();
+
+
+// Cat vs Alien Mice - Side-Scrolling Platformer Edition
+(function() {
+    'use strict';
+
+    // Canvas & Context
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // UI Elements
+    const hpContainer = document.getElementById('hp-container');
+    const coinCountEl = document.getElementById('coin-count');
+    const keyStatusEl = document.getElementById('key-status');
+    const keyTextEl = document.getElementById('key-text');
+    const stageNumEl = document.getElementById('stage-num');
+    const scoreValEl = document.getElementById('score-val');
+    const muteBtn = document.getElementById('mute-btn');
+    const invincibleBanner = document.getElementById('invincible-banner');
+    const invincibleTimerEl = document.getElementById('invincible-timer');
+
+    const startModal = document.getElementById('start-modal');
+    const clearModal = document.getElementById('clear-modal');
+    const gameoverModal = document.getElementById('gameover-modal');
+    const startBtn = document.getElementById('start-btn');
+    const nextStageBtn = document.getElementById('next-stage-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const clearScoreEl = document.getElementById('clear-score');
+    const clearEnemiesEl = document.getElementById('clear-enemies');
+    const gameoverScoreEl = document.getElementById('gameover-score');
+
+    // Touch controls
+    const touchLeft = document.getElementById('touch-left');
+    const touchRight = document.getElementById('touch-right');
+    const touchShot = document.getElementById('touch-shot');
+    const touchJump = document.getElementById('touch-jump');
+
+    // Game Constants
+    const GRAVITY = 950;
+    const STAGE_WIDTH = 3400; // ステージの横幅
+    const STAGE_HEIGHT = 450;
+
+    // Game State
+    let gameState = 'START'; // 'START', 'PLAYING', 'CLEAR', 'GAMEOVER'
+    let stage = 1;
+    let score = 0;
+    let enemiesDefeated = 0;
+    let lastTime = 0;
+
+    // Camera
+    const camera = {
+        x: 0,
+        y: 0,
+        width: 800,
+        height: 450
+    };
+
+    // Input Keys
+    const keys = {
+        left: false,
+        right: false,
+        jump: false,
+        shot: false
+    };
+
+    // Player (Cat)
+    const player = {
+        x: 100,
+        y: 280,
+        width: 38,
+        height: 38,
+        vx: 0,
+        vy: 0,
+        speed: 240,
+        jumpForce: -460,
+        isGrounded: false,
+        canDoubleJump: true,
+        facing: 1, // 1: 右, -1: 左
+        hp: 3,
+        maxHp: 3,
+        coins: 0,
+        hasKey: false,
+        shotCooldown: 0,
+        hurtTimer: 0,
+        invincibleTime: 0,
+        isInvincible: false,
+        walkCycle: 0,
+        tailAngle: 0
+    };
+
+    // Door (Exit Airlock at end of stage)
+    const door = {
+        x: 3180,
+        y: 260,
+        width: 70,
+        height: 100,
+        isOpen: false,
+        openProgress: 0
+    };
+
+    // Dynamic Collections
+    let platforms = [];
+    let questionBlocks = [];
+    let enemies = [];
+    let projectiles = []; // 猫の放出弾（ツメ衝撃波）
+    let enemyBullets = [];
+    let items = [];
+    let particles = [];
+    let floatingTexts = [];
+
+    // Background Stars & Clouds
+    const bgStars = [];
+    for (let i = 0; i < 90; i++) {
+        bgStars.push({
+            x: Math.random() * 800,
+            y: Math.random() * 450,
+            size: Math.random() * 2 + 0.5,
+            blink: Math.random() * Math.PI * 2
+        });
+    }
+
+    // Input Listeners
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+            keys.left = true;
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+            keys.right = true;
+        } else if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            keys.jump = true;
+            tryJump();
+            e.preventDefault();
+        } else if (e.code === 'KeyJ' || e.code === 'KeyX' || e.code === 'KeyZ' || e.code === 'Enter') {
+            keys.shot = true;
+            tryShoot();
+            e.preventDefault();
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+            keys.left = false;
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+            keys.right = false;
+        } else if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            keys.jump = false;
+            // 可変ジャンプ：キーを離したら上昇を減衰
+            if (player.vy < -150) {
+                player.vy = -150;
+            }
+        } else if (e.code === 'KeyJ' || e.code === 'KeyX' || e.code === 'KeyZ' || e.code === 'Enter') {
+            keys.shot = false;
+        }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (e.button === 0 && gameState === 'PLAYING') {
+            tryShoot();
+        }
+    });
+
+    // Touch controls setup
+    const bindTouchAction = (elem, pressCallback, releaseCallback) => {
+        elem.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            pressCallback();
+        });
+        elem.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (releaseCallback) releaseCallback();
+        });
+    };
+
+    bindTouchAction(touchLeft, () => { keys.left = true; }, () => { keys.left = false; });
+    bindTouchAction(touchRight, () => { keys.right = true; }, () => { keys.right = false; });
+    bindTouchAction(touchJump, () => {
+        keys.jump = true;
+        tryJump();
+    }, () => {
+        keys.jump = false;
+        if (player.vy < -150) player.vy = -150;
+    });
+    bindTouchAction(touchShot, () => {
+        tryShoot();
+    });
+
+    muteBtn.addEventListener('click', () => {
+        window.soundEngine.init();
+        const muted = window.soundEngine.toggleMute();
+        muteBtn.textContent = muted ? '🔇 サウンドOFF' : '🔊 サウンドON';
+    });
+
+    startBtn.addEventListener('click', () => {
+        window.soundEngine.init();
+        startModal.style.display = 'none';
+        startGame(1);
+    });
+
+    nextStageBtn.addEventListener('click', () => {
+        clearModal.style.display = 'none';
+        startGame(stage + 1);
+    });
+
+    restartBtn.addEventListener('click', () => {
+        gameoverModal.style.display = 'none';
+        score = 0;
+        startGame(1);
+    });
+
+    // ジャンプ処理
+    function tryJump() {
+        if (gameState !== 'PLAYING') return;
+
+        if (player.isGrounded) {
+            const force = player.isInvincible ? player.jumpForce * 1.15 : player.jumpForce;
+            player.vy = force;
+            player.isGrounded = false;
+            player.canDoubleJump = true;
+            window.soundEngine.playJump();
+            createJumpParticles(player.x + player.width / 2, player.y + player.height);
+        } else if (player.canDoubleJump) {
+            // 2段ジャンプ
+            player.vy = player.jumpForce * 0.9;
+            player.canDoubleJump = false;
+            window.soundEngine.playJump();
+            createJumpParticles(player.x + player.width / 2, player.y + player.height);
+            addFloatingText(player.x + player.width / 2, player.y, '2段ジャンプ!', '#00f0ff');
+        }
+    }
+
+    // 【重要要件】猫の放出系攻撃（ツメの衝撃波スラッシャー）
+    function tryShoot() {
+        if (gameState !== 'PLAYING') return;
+        if (player.shotCooldown > 0) return;
+
+        player.shotCooldown = player.isInvincible ? 0.12 : 0.22; // 無敵時は連射可能！
+        window.soundEngine.playShoot(player.isInvincible);
+
+        const originX = player.facing === 1 ? player.x + player.width + 4 : player.x - 4;
+        const originY = player.y + player.height / 2;
+
+        if (player.isInvincible) {
+            // 【無敵時】ハイパークローキャノン（3WAY巨大貫通波）！
+            const angles = [-0.18, 0, 0.18];
+            angles.forEach(ang => {
+                projectiles.push({
+                    x: originX,
+                    y: originY,
+                    vx: Math.cos(ang) * 680 * player.facing,
+                    vy: Math.sin(ang) * 680,
+                    width: 36,
+                    height: 28,
+                    facing: player.facing,
+                    isHyper: true,
+                    life: 0.9,
+                    color: '#ffe600'
+                });
+            });
+            createMuzzleFlash(originX, originY, '#ffe600');
+        } else {
+            // 【通常時】鋭いツメの三連衝撃波！
+            projectiles.push({
+                x: originX,
+                y: originY,
+                vx: 560 * player.facing,
+                vy: 0,
+                width: 26,
+                height: 20,
+                facing: player.facing,
+                isHyper: false,
+                life: 0.75,
+                color: '#00f0ff'
+            });
+            createMuzzleFlash(originX, originY, '#00f0ff');
+        }
+    }
+
+    // ステージ構築（マップ生成）
+    function buildStage(stageNum) {
+        platforms = [];
+        questionBlocks = [];
+        enemies = [];
+        projectiles = [];
+        enemyBullets = [];
+        items = [];
+        particles = [];
+        floatingTexts = [];
+
+        // 1. 地面ブロック（床と穴ピットの配置）
+        // セクション1: スタート地点（X: 0〜850）
+        platforms.push({ x: 0, y: 360, width: 850, height: 90, type: 'ground' });
+
+        // 穴 1: X: 850〜970
+
+        // セクション2: X: 970〜1750
+        platforms.push({ x: 970, y: 360, width: 780, height: 90, type: 'ground' });
+
+        // 穴 2: X: 1750〜1880
+
+        // セクション3: X: 1880〜2650
+        platforms.push({ x: 1880, y: 360, width: 770, height: 90, type: 'ground' });
+
+        // 穴 3: X: 2650〜2780
+
+        // セクション4（ゴールエリア）: X: 2780〜3400
+        platforms.push({ x: 2780, y: 360, width: 620, height: 90, type: 'ground' });
+
+        // 2. 浮遊プラットフォーム（段差とハイテク足場）
+        const platformData = [
+            // セクション1
+            { x: 300, y: 270, width: 120, height: 20 },
+            { x: 500, y: 200, width: 140, height: 20 },
+            { x: 700, y: 260, width: 110, height: 20 },
+
+            // 穴1の上の足場
+            { x: 880, y: 290, width: 80, height: 18 },
+
+            // セクション2
+            { x: 1100, y: 250, width: 130, height: 20 },
+            { x: 1300, y: 180, width: 150, height: 20 },
+            { x: 1520, y: 240, width: 120, height: 20 },
+
+            // 穴2の上の足場
+            { x: 1780, y: 280, width: 90, height: 18 },
+
+            // セクション3（要塞エリア）
+            { x: 1980, y: 260, width: 130, height: 20 },
+            { x: 2180, y: 190, width: 220, height: 24, isFortress: true }, // ここにキーキャリアー！
+            { x: 2460, y: 250, width: 120, height: 20 },
+
+            // 穴3の上の足場
+            { x: 2680, y: 270, width: 80, height: 18 },
+
+            // ゴール直前足場
+            { x: 2900, y: 260, width: 140, height: 20 }
+        ];
+
+        platformData.forEach(p => {
+            platforms.push({ x: p.x, y: p.y, width: p.width, height: p.height, type: 'metal' });
+        });
+
+        // 3. はてなブロック（？ブロック風ハイテクコインボックス）
+        const qBlockData = [
+            { x: 350, y: 160 },
+            { x: 550, y: 90 },
+            { x: 1150, y: 140 },
+            { x: 1360, y: 70 },
+            { x: 2030, y: 150 },
+            { x: 2950, y: 150 }
+        ];
+        qBlockData.forEach(b => {
+            questionBlocks.push({
+                x: b.x,
+                y: b.y,
+                width: 34,
+                height: 34,
+                hit: false,
+                bumpTimer: 0
+            });
+        });
+
+        // 4. ネズミ宇宙人の配置
+        // (A) パトロールネズミ（地上を行き来する）
+        const patrolXs = [420, 640, 1050, 1220, 1480, 1920, 2520, 2860];
+        patrolXs.forEach(px => {
+            enemies.push(createEnemy(px, 320, 'PATROL', false));
+        });
+
+        // (B) ジャンプネズミ（ピョンピョン跳ねる）
+        const jumperXs = [520, 1340, 2010];
+        jumperXs.forEach(jx => {
+            enemies.push(createEnemy(jx, 160, 'JUMPER', false));
+        });
+
+        // (C) フライングUFOネズミ（空を浮遊し光弾を落とす）
+        const ufoXs = [750, 1600, 2380, 2750];
+        ufoXs.forEach(ux => {
+            enemies.push(createEnemy(ux, 100, 'UFO', false));
+        });
+
+        // (D) キーキャリアーネズミ（王冠を被ったキャプテンネズミ！X: 2260 の足場中央に鎮座）
+        enemies.push(createEnemy(2260, 140, 'KEY_CARRIER', true));
+
+        // ドアリセット
+        door.x = 3200;
+        door.y = 260;
+        door.isOpen = false;
+        door.openProgress = 0;
+    }
+
+    function createEnemy(x, y, type, isKey) {
+        return {
+            x: x,
+            y: y,
+            width: isKey ? 42 : (type === 'UFO' ? 36 : 32),
+            height: isKey ? 42 : (type === 'UFO' ? 32 : 32),
+            vx: type === 'UFO' ? 60 : -70,
+            vy: 0,
+            type: type,
+            isKeyCarrier: isKey,
+            hp: isKey ? 3 : 1,
+            jumpTimer: Math.random() * 2 + 1,
+            shootTimer: Math.random() * 3 + 1,
+            originX: x,
+            patrolRange: 160,
+            isGrounded: false,
+            animTimer: Math.random() * 10
+        };
+    }
+
+    // ゲーム開始
+    function startGame(stageNumber) {
+        stage = stageNumber;
+        stageNumEl.textContent = stage;
+        gameState = 'PLAYING';
+
+        // プレイヤー初期化
+        player.x = 80;
+        player.y = 280;
+        player.vx = 0;
+        player.vy = 0;
+        player.hp = 3;
+        player.coins = 0;
+        player.hasKey = false;
+        player.invincibleTime = 0;
+        player.isInvincible = false;
+        player.hurtTimer = 0;
+        player.facing = 1;
+        window.soundEngine.setInvincible(false);
+
+        camera.x = 0;
+        camera.y = 0;
+
+        buildStage(stage);
+        updateHUD();
+    }
+
+    // HUD更新
+    function updateHUD() {
+        const hearts = hpContainer.querySelectorAll('.heart');
+        hearts.forEach((h, idx) => {
+            if (idx < player.hp) {
+                h.classList.remove('lost');
+            } else {
+                h.classList.add('lost');
+            }
+        });
+
+        coinCountEl.textContent = player.coins;
+
+        if (player.hasKey) {
+            keyStatusEl.className = 'key-box has-key';
+            keyTextEl.textContent = '所持中！';
+        } else {
+            keyStatusEl.className = 'key-box no-key';
+            keyTextEl.textContent = '未所持';
+        }
+
+        scoreValEl.textContent = score;
+
+        if (player.isInvincible) {
+            invincibleBanner.style.display = 'block';
+            invincibleTimerEl.textContent = player.invincibleTime.toFixed(1);
+        } else {
+            invincibleBanner.style.display = 'none';
+        }
+    }
+
+    // メインアップデート
+    function update(dt) {
+        if (gameState !== 'PLAYING') return;
+
+        // 1. 無敵タイマーの管理
+        if (player.invincibleTime > 0) {
+            player.invincibleTime -= dt;
+            player.isInvincible = true;
+            window.soundEngine.setInvincible(true);
+
+            if (Math.random() < 0.6) {
+                createSparkle(
+                    player.x + Math.random() * player.width,
+                    player.y + Math.random() * player.height
+                );
+            }
+
+            if (player.invincibleTime <= 0) {
+                player.invincibleTime = 0;
+                player.isInvincible = false;
+                window.soundEngine.setInvincible(false);
+                addFloatingText(player.x + player.width / 2, player.y - 20, '無敵モード終了', '#fff');
+            }
+        }
+
+        if (player.shotCooldown > 0) player.shotCooldown -= dt;
+        if (player.hurtTimer > 0) player.hurtTimer -= dt;
+
+        // 2. プレイヤーの移動物理（横スクロール）
+        const moveSpeed = player.isInvincible ? player.speed * 1.35 : player.speed;
+        if (keys.left) {
+            player.vx = -moveSpeed;
+            player.facing = -1;
+            player.walkCycle += dt * 12;
+        } else if (keys.right) {
+            player.vx = moveSpeed;
+            player.facing = 1;
+            player.walkCycle += dt * 12;
+        } else {
+            player.vx *= 0.65; // 摩擦減速
+            if (Math.abs(player.vx) < 5) player.vx = 0;
+        }
+
+        // 重力
+        player.vy += GRAVITY * dt;
+        if (player.vy > 750) player.vy = 750; // 終端落下速度
+
+        // 位置仮更新と足場との当たり判定
+        player.x += player.vx * dt;
+        handleHorizontalCollisions(player);
+
+        player.y += player.vy * dt;
+        player.isGrounded = false;
+        handleVerticalCollisions(player);
+
+        // はてなブロックへの頭突き判定（マリオ風！）
+        checkQuestionBlockCollisions();
+
+        // 画面左端の制限
+        if (player.x < 0) {
+            player.x = 0;
+            player.vx = 0;
+        }
+
+        // 穴ピット落下（ミス・救済）
+        if (player.y > STAGE_HEIGHT + 60) {
+            takeDamage();
+            // 直近の安全な足場に復帰
+            player.y = 200;
+            player.vy = -350;
+            player.x = Math.max(80, player.x - 120);
+        }
+
+        // 3. カメラ追従（プレイヤーを画面中央付近に保つ）
+        const targetCamX = player.x - camera.width * 0.35;
+        camera.x += (targetCamX - camera.x) * 0.12;
+        if (camera.x < 0) camera.x = 0;
+        if (camera.x > STAGE_WIDTH - camera.width) camera.x = STAGE_WIDTH - camera.width;
+
+        // 4. 猫の放出弾（ツメ衝撃波）の更新
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const p = projectiles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+
+            // パーティクル痕跡
+            if (Math.random() < 0.5) {
+                createSparkle(p.x, p.y + p.height / 2);
+            }
+
+            // 敵との衝突判定
+            let hitEnemy = false;
+            for (let j = enemies.length - 1; j >= 0; j--) {
+                const e = enemies[j];
+                if (checkAABB(p, e)) {
+                    damageEnemy(e, j, 1);
+                    hitEnemy = true;
+                    if (!p.isHyper) break; // 通常弾は当たると消滅、ハイパー弾は貫通！
+                }
+            }
+
+            if ((hitEnemy && !p.isHyper) || p.life <= 0 || p.x < camera.x - 100 || p.x > camera.x + camera.width + 100) {
+                projectiles.splice(i, 1);
+            }
+        }
+
+        // 5. 敵の更新（AI、移動、プレイヤーとの接触）
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+            e.animTimer += dt * 4;
+
+            // 敵のタイプ別行動
+            if (e.type === 'PATROL') {
+                e.x += e.vx * dt;
+                // パトロール範囲または壁・段差で折り返し
+                if (Math.abs(e.x - e.originX) > e.patrolRange) {
+                    e.vx = -e.vx;
+                }
+            } else if (e.type === 'JUMPER') {
+                e.jumpTimer -= dt;
+                if (e.jumpTimer <= 0 && e.isGrounded) {
+                    e.vy = -380;
+                    e.jumpTimer = 1.8 + Math.random() * 1.2;
+                }
+                e.vy += GRAVITY * dt;
+                e.y += e.vy * dt;
+                handleEnemyVerticalCollisions(e);
+            } else if (e.type === 'UFO') {
+                // サイン波で浮遊
+                e.x += e.vx * dt;
+                e.y = 80 + Math.sin(e.animTimer) * 35;
+                if (Math.abs(e.x - e.originX) > 140) e.vx = -e.vx;
+
+                // 光弾投下
+                e.shootTimer -= dt;
+                if (e.shootTimer <= 0) {
+                    e.shootTimer = 2.4 + Math.random() * 1.5;
+                    enemyBullets.push({
+                        x: e.x + e.width / 2,
+                        y: e.y + e.height,
+                        vx: (player.x - e.x) * 0.4,
+                        vy: 180,
+                        radius: 5,
+                        life: 3
+                    });
+                }
+            } else if (e.type === 'KEY_CARRIER') {
+                // ボスキャプテンネズミ
+                e.x += e.vx * dt;
+                if (Math.abs(e.x - e.originX) > 80) e.vx = -e.vx;
+
+                // たまに前方にレーザー弾
+                e.shootTimer -= dt;
+                if (e.shootTimer <= 0) {
+                    e.shootTimer = 2.0;
+                    const dir = player.x < e.x ? -1 : 1;
+                    enemyBullets.push({
+                        x: e.x + (dir === 1 ? e.width : 0),
+                        y: e.y + e.height / 2,
+                        vx: dir * 220,
+                        vy: 0,
+                        radius: 6,
+                        life: 3
+                    });
+                }
+            }
+
+            // プレイヤーと敵の接触
+            if (checkAABB(player, e)) {
+                if (player.isInvincible) {
+                    // 無敵モード中は体当たりで敵を一撃粉砕！
+                    damageEnemy(e, i, 99);
+                    addFloatingText(e.x, e.y, 'BAM!! 💥', '#ffe600');
+                    continue;
+                }
+
+                // 踏みつけ判定（プレイヤーが落下中で、敵の頭上にいる場合）
+                const isStomp = player.vy > 0 && (player.y + player.height - player.vy * dt) <= e.y + 12;
+                if (isStomp) {
+                    window.soundEngine.playStomp();
+                    player.vy = -360; // 踏みつけ大ジャンプ！
+                    player.canDoubleJump = true;
+                    damageEnemy(e, i, 1);
+                    addFloatingText(e.x, e.y, 'STOMP!!', '#39ff14');
+                    createHitParticles(e.x + e.width / 2, e.y, '#39ff14');
+                } else if (player.hurtTimer <= 0) {
+                    // 猫がダメージを受ける
+                    takeDamage();
+                }
+            }
+        }
+
+        // 6. 敵の弾丸更新
+        for (let i = enemyBullets.length - 1; i >= 0; i--) {
+            const b = enemyBullets[i];
+            b.x += b.vx * dt;
+            b.y += b.vy * dt;
+            b.life -= dt;
+
+            // プレイヤーとの当たり判定
+            const pBox = { x: b.x - b.radius, y: b.y - b.radius, width: b.radius * 2, height: b.radius * 2 };
+            if (checkAABB(player, pBox)) {
+                if (!player.isInvincible && player.hurtTimer <= 0) {
+                    takeDamage();
+                }
+                enemyBullets.splice(i, 1);
+                continue;
+            }
+
+            if (b.life <= 0 || b.y > STAGE_HEIGHT) {
+                enemyBullets.splice(i, 1);
+            }
+        }
+
+        // 7. アイテムの物理・収集更新
+        for (let i = items.length - 1; i >= 0; i--) {
+            const it = items[i];
+            it.animTimer += dt * 4;
+            it.vy += GRAVITY * dt * 0.8;
+            it.x += it.vx * dt;
+            it.y += it.vy * dt;
+            it.vx *= 0.96;
+
+            // 足場との接地判定
+            platforms.forEach(p => {
+                if (it.x + it.radius > p.x && it.x - it.radius < p.x + p.width) {
+                    if (it.y + it.radius >= p.y && it.y - it.radius < p.y + p.height && it.vy > 0) {
+                        it.y = p.y - it.radius;
+                        it.vy = -it.vy * 0.4; // バウンド
+                    }
+                }
+            });
+
+            // プレイヤーへの吸い寄せ
+            const dx = (player.x + player.width / 2) - it.x;
+            const dy = (player.y + player.height / 2) - it.y;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist < 110) {
+                it.x += (dx / dist) * 260 * dt;
+                it.y += (dy / dist) * 260 * dt;
+            }
+
+            // 拾う判定
+            if (dist < player.width / 2 + it.radius + 6) {
+                collectItem(it);
+                items.splice(i, 1);
+            }
+        }
+
+        // 8. ゴールの扉（Exit Door）との相互作用
+        const doorCenterX = door.x + door.width / 2;
+        const playerCenterX = player.x + player.width / 2;
+        const distToDoor = Math.abs(playerCenterX - doorCenterX);
+
+        if (distToDoor < 70 && player.y > door.y - 20 && player.y < door.y + door.height + 20) {
+            if (player.hasKey) {
+                if (!door.isOpen) {
+                    door.isOpen = true;
+                    window.soundEngine.playDoorOpen();
+                    addFloatingText(door.x + door.width / 2, door.y - 20, 'DOOR UNLOCKED!!', '#ffd700');
+                    createExplosion(door.x + door.width / 2, door.y + 40, '#00f0ff');
+                }
+            } else {
+                if (Math.random() < 0.03) {
+                    addFloatingText(door.x + door.width / 2, door.y - 20, '🔑 カギが必要です！', '#ff3366');
+                }
+            }
+        }
+
+        // ドアが開いて中に飛び込んだらステージクリア！
+        if (door.isOpen) {
+            door.openProgress = Math.min(1, door.openProgress + dt * 2.5);
+            if (door.openProgress >= 0.7 && distToDoor < 30) {
+                stageClear();
+                return;
+            }
+        }
+
+        // 9. パーティクル・浮動テキスト
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+            const ft = floatingTexts[i];
+            ft.y -= dt * 35;
+            ft.life -= dt;
+            if (ft.life <= 0) floatingTexts.splice(i, 1);
+        }
+
+        updateHUD();
+    }
+
+    // AABB衝突判定
+    function checkAABB(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y
+        );
+    }
+
+    // 水平方向の衝突判定
+    function handleHorizontalCollisions(ent) {
+        platforms.forEach(p => {
+            if (checkAABB(ent, p)) {
+                if (ent.vx > 0) {
+                    ent.x = p.x - ent.width;
+                    ent.vx = 0;
+                } else if (ent.vx < 0) {
+                    ent.x = p.x + p.width;
+                    ent.vx = 0;
+                }
+            }
+        });
+    }
+
+    // 垂直方向の衝突判定
+    function handleVerticalCollisions(ent) {
+        platforms.forEach(p => {
+            if (checkAABB(ent, p)) {
+                if (ent.vy > 0) {
+                    // 着地
+                    ent.y = p.y - ent.height;
+                    ent.vy = 0;
+                    ent.isGrounded = true;
+                } else if (ent.vy < 0) {
+                    // 天井衝突
+                    ent.y = p.y + p.height;
+                    ent.vy = 0;
+                }
+            }
+        });
+    }
+
+    function handleEnemyVerticalCollisions(e) {
+        e.isGrounded = false;
+        platforms.forEach(p => {
+            if (checkAABB(e, p)) {
+                if (e.vy > 0) {
+                    e.y = p.y - e.height;
+                    e.vy = 0;
+                    e.isGrounded = true;
+                }
+            }
+        });
+    }
+
+    // はてなブロックへの頭突き
+    function checkQuestionBlockCollisions() {
+        questionBlocks.forEach(b => {
+            if (b.bumpTimer > 0) b.bumpTimer -= 0.05;
+
+            // プレイヤーが下からジャンプしてブロックに頭突き
+            if (player.vy < 0 && checkAABB(player, b)) {
+                player.y = b.y + b.height;
+                player.vy = 50;
+
+                if (!b.hit) {
+                    b.hit = true;
+                    b.bumpTimer = 1;
+                    score += 100;
+                    window.soundEngine.playCoin();
+                    addFloatingText(b.x + b.width / 2, b.y - 20, '+1 🪙', '#ffe600');
+                    spawnItem(b.x + b.width / 2, b.y - 15, 'COIN', -240);
+                }
+            }
+        });
+    }
+
+    // 敵にダメージ・撃破
+    function damageEnemy(enemy, index, damage = 1) {
+        enemy.hp -= damage;
+        createHitParticles(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff0055');
+
+        if (enemy.hp <= 0) {
+            window.soundEngine.playEnemyDefeat();
+            createExplosion(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, enemy.isKeyCarrier ? '#ffd700' : '#39ff14');
+            score += enemy.isKeyCarrier ? 1000 : 150;
+            enemiesDefeated++;
+
+            // アイテムドロップ（ポーンと上へ飛び出す！）
+            dropItems(enemy);
+
+            enemies.splice(index, 1);
+            updateHUD();
+        } else {
+            // ノックバック
+            enemy.vx = (player.facing || 1) * 120;
+        }
+    }
+
+    // アイテムドロップ処理
+    function dropItems(enemy) {
+        const cx = enemy.x + enemy.width / 2;
+        const cy = enemy.y;
+
+        // キーキャリアーは確定でカギをドロップ
+        if (enemy.isKeyCarrier && !player.hasKey) {
+            spawnItem(cx, cy, 'KEY', -300);
+            addFloatingText(cx, cy - 25, '🔑 鍵ドロップ！', '#ffd700');
+            return;
+        }
+
+        const needKey = !player.hasKey && !items.some(it => it.type === 'KEY');
+        const roll = Math.random();
+
+        if (needKey && roll < 0.25) {
+            spawnItem(cx, cy, 'KEY', -300);
+            addFloatingText(cx, cy - 25, '🔑 鍵ドロップ！', '#ffd700');
+        } else if (roll < 0.65) {
+            spawnItem(cx, cy, 'COIN', -260);
+        } else if (roll < 0.85) {
+            spawnItem(cx, cy, 'FISH', -220);
+        } else {
+            spawnItem(cx, cy, 'COIN', -260);
+        }
+    }
+
+    function spawnItem(x, y, type, vyForce = -200) {
+        items.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 120,
+            vy: vyForce,
+            type: type,
+            radius: type === 'KEY' ? 16 : 12,
+            animTimer: Math.random() * Math.PI * 2
+        });
+    }
+
+    // アイテム収集
+    function collectItem(item) {
+        if (item.type === 'COIN') {
+            player.coins++;
+            score += 50;
+            window.soundEngine.playCoin();
+            addFloatingText(item.x, item.y, '+1 🪙', '#ffe600');
+
+            // 【超重要要件】１０コインを集めると３０秒無敵になる
+            if (player.coins >= 10) {
+                player.coins -= 10;
+                player.invincibleTime = 30.0; // 30秒無敵！
+                player.isInvincible = true;
+                window.soundEngine.playInvincibleStart();
+                addFloatingText(player.x + player.width / 2, player.y - 40, '⚡ 30秒 無敵モード発動!! ⚡', '#ff007f');
+                createExplosion(player.x + player.width / 2, player.y + player.height / 2, '#ffe600');
+            }
+        } else if (item.type === 'KEY') {
+            // 【重要要件】カギを所持
+            player.hasKey = true;
+            score += 500;
+            window.soundEngine.playKey();
+            addFloatingText(item.x, item.y, '🔑 カギ獲得！ゴールの扉へ行こう！', '#ffd700');
+            createExplosion(item.x, item.y, '#ffd700');
+        } else if (item.type === 'FISH') {
+            if (player.hp < player.maxHp) {
+                player.hp++;
+                addFloatingText(item.x, item.y, 'HP回復 ❤️', '#ff3366');
+            } else {
+                score += 200;
+                addFloatingText(item.x, item.y, '+200点 🐟', '#00f0ff');
+            }
+            window.soundEngine.playHeal();
+        }
+    }
+
+    // ダメージ処理
+    function takeDamage() {
+        player.hp--;
+        player.hurtTimer = 1.6;
+        player.vy = -260; // 被弾ポップ
+        window.soundEngine.playCatHurt();
+        createHitParticles(player.x + player.width / 2, player.y + player.height / 2, '#ff0033');
+        addFloatingText(player.x + player.width / 2, player.y - 20, 'ニャーッ!!', '#ff3366');
+
+        if (player.hp <= 0) {
+            gameState = 'GAMEOVER';
+            window.soundEngine.playGameOver();
+            gameoverScoreEl.textContent = score;
+            gameoverModal.style.display = 'flex';
+        }
+    }
+
+    // ステージクリア処理
+    function stageClear() {
+        gameState = 'CLEAR';
+        window.soundEngine.playClear();
+        clearScoreEl.textContent = score;
+        clearEnemiesEl.textContent = enemiesDefeated;
+        clearModal.style.display = 'flex';
+    }
+
+    // パーティクル＆エフェクト
+    function createJumpParticles(x, y) {
+        for (let i = 0; i < 6; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 80,
+                vy: Math.random() * -30 - 10,
+                life: 0.25,
+                color: 'rgba(255, 255, 255, 0.7)',
+                size: Math.random() * 3 + 2
+            });
+        }
+    }
+
+    function createMuzzleFlash(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                vx: (Math.random() - 0.5) * 100,
+                vy: (Math.random() - 0.5) * 100,
+                life: 0.2,
+                color: color,
+                size: Math.random() * 4 + 2
+            });
+        }
+    }
+
+    function createHitParticles(x, y, color) {
+        for (let i = 0; i < 12; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 140 + 30;
+            particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 0.35,
+                color: color,
+                size: Math.random() * 3 + 2
+            });
+        }
+    }
+
+    function createExplosion(x, y, color) {
+        for (let i = 0; i < 22; i++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = Math.random() * 220 + 40;
+            particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(ang) * spd,
+                vy: Math.sin(ang) * spd,
+                life: 0.5,
+                color: color,
+                size: Math.random() * 5 + 2
+            });
+        }
+    }
+
+    function createSparkle(x, y) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 40,
+            vy: (Math.random() - 0.5) * 40,
+            life: 0.4,
+            size: Math.random() * 4 + 2,
+            color: `hsl(${Math.random() * 360}, 100%, 75%)`
+        });
+    }
+
+    function addFloatingText(x, y, text, color) {
+        floatingTexts.push({
+            x: x,
+            y: y,
+            text: text,
+            color: color,
+            life: 1.2
+        });
+    }
+
+    // 描画メイン
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 1. パララックス宇宙背景
+        drawParallaxBackground();
+
+        // カメラ変換
+        ctx.save();
+        ctx.translate(-camera.x, -camera.y);
+
+        // 2. プラットフォーム＆はてなブロック
+        drawPlatforms();
+        drawQuestionBlocks();
+
+        // 3. ゴールの扉
+        drawDoor();
+
+        // 4. アイテム
+        items.forEach(drawItem);
+
+        // 5. 放出弾（猫のツメ衝撃波）
+        projectiles.forEach(drawProjectile);
+
+        // 6. 敵の弾丸
+        enemyBullets.forEach(drawEnemyBullet);
+
+        // 7. 敵（ネズミ宇宙人）
+        enemies.forEach(drawEnemy);
+
+        // 8. 猫プレイヤー
+        drawPlayer();
+
+        // 9. パーティクル＆エフェクト
+        particles.forEach(drawParticle);
+
+        // 10. フローティングテキスト
+        floatingTexts.forEach(drawFloatingText);
+
+        ctx.restore();
+    }
+
+    // 多重スクロール背景
+    function drawParallaxBackground() {
+        // 遠景：宇宙のグラデーション
+        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, '#070a1a');
+        grad.addColorStop(1, '#181b36');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 星々（緩やかにパララックス）
+        bgStars.forEach(s => {
+            s.blink += 0.04;
+            const alpha = 0.3 + Math.sin(s.blink) * 0.3;
+            const px = (s.x - camera.x * 0.15) % canvas.width;
+            const realX = px < 0 ? px + canvas.width : px;
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.fillRect(realX, s.y, s.size, s.size);
+        });
+
+        // 中景：未来の宇宙ステーションの遠景ビルシルエット
+        ctx.fillStyle = '#101429';
+        const skylineOffset = (camera.x * 0.3) % 180;
+        for (let bx = -skylineOffset - 50; bx < canvas.width + 100; bx += 70) {
+            const h = 80 + Math.sin(bx * 0.05) * 40;
+            ctx.fillRect(bx, canvas.height - h - 30, 50, h);
+            // 窓の明かり
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+            ctx.fillRect(bx + 10, canvas.height - h, 8, 8);
+            ctx.fillStyle = '#101429';
+        }
+    }
+
+    // プラットフォーム（地面＆足場）の描画
+    function drawPlatforms() {
+        platforms.forEach(p => {
+            // カメラ範囲内のみ描画
+            if (p.x + p.width < camera.x || p.x > camera.x + camera.width) return;
+
+            if (p.type === 'ground') {
+                // 地面
+                ctx.fillStyle = '#1e293b';
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+
+                // 上部ネオングリーン・サイバーライン
+                ctx.fillStyle = '#39ff14';
+                ctx.fillRect(p.x, p.y, p.width, 4);
+
+                // グリッド装飾
+                ctx.strokeStyle = 'rgba(57, 255, 20, 0.15)';
+                ctx.lineWidth = 1;
+                for (let gx = p.x; gx < p.x + p.width; gx += 40) {
+                    ctx.strokeRect(gx, p.y + 4, 40, p.height - 4);
+                }
+            } else {
+                // 浮遊メタル足場
+                ctx.fillStyle = '#334155';
+                ctx.fillRect(p.x, p.y, p.width, p.height);
+
+                // シアンのネオンエッジ
+                ctx.fillStyle = '#00f0ff';
+                ctx.fillRect(p.x, p.y, p.width, 3);
+
+                // ボルト装飾
+                ctx.fillStyle = '#94a3b8';
+                ctx.beginPath();
+                ctx.arc(p.x + 8, p.y + p.height / 2, 2.5, 0, Math.PI * 2);
+                ctx.arc(p.x + p.width - 8, p.y + p.height / 2, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+
+    // はてなブロックの描画
+    function drawQuestionBlocks() {
+        questionBlocks.forEach(b => {
+            if (b.x + b.width < camera.x || b.x > camera.x + camera.width) return;
+
+            const bumpY = b.bumpTimer > 0 ? -Math.sin(b.bumpTimer * Math.PI) * 10 : 0;
+
+            ctx.save();
+            ctx.translate(b.x, b.y + bumpY);
+
+            if (b.hit) {
+                // 叩いた後はスチール色
+                ctx.fillStyle = '#475569';
+                ctx.fillRect(0, 0, b.width, b.height);
+                ctx.strokeStyle = '#334155';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(1, 1, b.width - 2, b.height - 2);
+            } else {
+                // 未開封はゴールドに光る
+                ctx.fillStyle = '#f59e0b';
+                ctx.fillRect(0, 0, b.width, b.height);
+                ctx.strokeStyle = '#fde68a';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(1, 1, b.width - 2, b.height - 2);
+
+                // 「？」マーク
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('?', b.width / 2, b.height / 2);
+            }
+
+            ctx.restore();
+        });
+    }
+
+    // ゴールの扉（脱出ハッチ）の描画
+    function drawDoor() {
+        ctx.save();
+        ctx.translate(door.x, door.y);
+
+        // ドア枠
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-6, -6, door.width + 12, door.height + 6);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-6, -6, door.width + 12, door.height + 6);
+
+        // スライドドア
+        const slide = door.openProgress * (door.height - 8);
+        ctx.fillStyle = door.isOpen ? '#059669' : '#334155';
+        ctx.fillRect(0, 0, door.width, door.height - slide);
+
+        // ドア中央の光
+        if (door.isOpen) {
+            ctx.fillStyle = 'rgba(57, 255, 20, 0.4)';
+            ctx.fillRect(4, door.height - slide, door.width - 8, slide);
+        }
+
+        // 電子ロック表示
+        ctx.fillStyle = door.isOpen ? '#39ff14' : '#ef4444';
+        ctx.beginPath();
+        ctx.arc(door.width / 2, -14, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // テキスト
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.fillText(door.isOpen ? '🚀 脱出ゲートOPEN!!' : '🔒 EXIT LOCKED', door.width / 2, -24);
+
+        ctx.restore();
+    }
+
+    // 猫プレイヤーの描画
+    function drawPlayer() {
+        if (player.hurtTimer > 0 && Math.floor(Date.now() / 80) % 2 === 0) {
+            return;
+        }
+
+        ctx.save();
+        ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+
+        // 追従するカギ（所持時）
+        if (player.hasKey) {
+            const keyFloatX = -player.facing * 28 + Math.cos(Date.now() * 0.006) * 5;
+            const keyFloatY = -22 + Math.sin(Date.now() * 0.006) * 5;
+            drawKeyGraphic(keyFloatX, keyFloatY, 0.85);
+        }
+
+        // 無敵オーラ
+        if (player.isInvincible) {
+            ctx.save();
+            const pulse = Math.sin(Date.now() * 0.015) * 5;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.width / 2 + 10 + pulse, 0, Math.PI * 2);
+            const auraGrad = ctx.createRadialGradient(0, 0, player.width / 2, 0, 0, player.width / 2 + 14 + pulse);
+            auraGrad.addColorStop(0, 'rgba(255, 230, 0, 0.8)');
+            auraGrad.addColorStop(0.5, 'rgba(255, 0, 127, 0.5)');
+            auraGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+            ctx.fillStyle = auraGrad;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // 左右反転
+        ctx.scale(player.facing, 1);
+
+        // 1. しっぽ
+        ctx.save();
+        ctx.translate(-player.width / 2 + 6, 4);
+        ctx.rotate(Math.sin(player.walkCycle || Date.now() * 0.005) * 0.5 - 0.4);
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-10, -6, -14, -14);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. 体（白猫＋宇宙スーツ）
+        ctx.fillStyle = player.isInvincible ? '#fffbeb' : '#f8fafc';
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 14, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 宇宙スーツの襟
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(-8, -4, 16, 4);
+
+        // 3. 頭
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(4, -6, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4. 耳
+        // 左耳
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-1, -16); ctx.lineTo(3, -24); ctx.lineTo(7, -17); ctx.fill();
+        ctx.fillStyle = '#f472b6';
+        ctx.beginPath();
+        ctx.moveTo(0, -16); ctx.lineTo(3, -22); ctx.lineTo(6, -17); ctx.fill();
+
+        // 右耳
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(7, -16); ctx.lineTo(12, -24); ctx.lineTo(15, -15); ctx.fill();
+        ctx.fillStyle = '#f472b6';
+        ctx.beginPath();
+        ctx.moveTo(8, -16); ctx.lineTo(12, -22); ctx.lineTo(14, -15); ctx.fill();
+
+        // 5. 目
+        ctx.fillStyle = player.isInvincible ? '#ff007f' : '#0284c7';
+        ctx.beginPath();
+        ctx.arc(8, -7, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(7.5, -8, 1, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 6. 鼻・ひげ
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(14, -4, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ひげ
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(12, -4); ctx.lineTo(20, -6);
+        ctx.moveTo(12, -2); ctx.lineTo(20, 0);
+        ctx.stroke();
+
+        // 7. 足（歩行アニメーション）
+        const legOffset = Math.sin(player.walkCycle) * 6;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(-6, 14, 5, 5 + (player.isGrounded ? legOffset : -3));
+        ctx.fillRect(6, 14, 5, 5 - (player.isGrounded ? legOffset : -3));
+
+        ctx.restore();
+    }
+
+    // 【重要要件】猫の放出弾（ツメの衝撃波スラッシャー）の描画
+    function drawProjectile(p) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 12;
+
+        if (p.isHyper) {
+            // ハイパークロー（巨大3連光刃）
+            ctx.fillStyle = '#ffe600';
+            ctx.strokeStyle = '#ff007f';
+            ctx.lineWidth = 3;
+
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.arc(0, i * 8, 10, -Math.PI / 3, Math.PI / 3);
+                ctx.stroke();
+            }
+
+            // コア光球
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 7, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // 通常の鋭い三本爪の光刃
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath();
+                ctx.moveTo(-6, i * 6);
+                ctx.quadraticCurveTo(8, i * 4, 14, i * 8);
+                ctx.stroke();
+            }
+        }
+
+        ctx.restore();
+    }
+
+    // ネズミ宇宙人の描画
+    function drawEnemy(enemy) {
+        if (enemy.x + enemy.width < camera.x || enemy.x > camera.x + camera.width) return;
+
+        ctx.save();
+        ctx.translate(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2);
+
+        // キーキャリアーの場合は頭上に王冠と鍵
+        if (enemy.isKeyCarrier) {
+            ctx.fillStyle = '#ffd700';
+            ctx.font = 'bold 15px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('🔑', 0, -enemy.height / 2 - 12);
+
+            // 王冠
+            ctx.fillStyle = '#ffaa00';
+            ctx.beginPath();
+            ctx.moveTo(-10, -enemy.height / 2 - 2);
+            ctx.lineTo(-8, -enemy.height / 2 - 9);
+            ctx.lineTo(-3, -enemy.height / 2 - 5);
+            ctx.lineTo(0, -enemy.height / 2 - 11);
+            ctx.lineTo(3, -enemy.height / 2 - 5);
+            ctx.lineTo(8, -enemy.height / 2 - 9);
+            ctx.lineTo(10, -enemy.height / 2 - 2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 左右反転
+        const facing = enemy.vx >= 0 ? 1 : -1;
+        ctx.scale(facing, 1);
+
+        if (enemy.type === 'UFO') {
+            // UFOに乗ったネズミ
+            // UFO本体（メタリック円盤）
+            ctx.fillStyle = '#475569';
+            ctx.beginPath();
+            ctx.ellipse(0, 4, 18, 7, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // UFO底面のランプ
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath();
+            ctx.arc(-8, 7, 2, 0, Math.PI * 2);
+            ctx.arc(0, 8, 2, 0, Math.PI * 2);
+            ctx.arc(8, 7, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // ガラスドーム
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.25)';
+            ctx.beginPath();
+            ctx.arc(0, 0, 11, Math.PI, 0);
+            ctx.fill();
+
+            // ドームの中のネズミ顔
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(0, -2, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(3, -2, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            // 歩行ネズミ（宇宙服）
+            // 1. しっぽ
+            ctx.strokeStyle = '#fda4af';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-10, 4);
+            ctx.quadraticCurveTo(-16, 2 + Math.sin(enemy.animTimer) * 4, -20, 8);
+            ctx.stroke();
+
+            // 2. 宇宙スーツ（体）
+            ctx.fillStyle = enemy.isKeyCarrier ? '#eab308' : (enemy.type === 'JUMPER' ? '#a855f7' : '#22c55e');
+            ctx.beginPath();
+            ctx.ellipse(0, 4, 11, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 3. 大きな丸い耳
+            ctx.fillStyle = '#64748b';
+            ctx.beginPath();
+            ctx.arc(-6, -10, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#fda4af';
+            ctx.beginPath();
+            ctx.arc(-6, -10, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 4. 頭部＆宇宙ヘルメット
+            ctx.fillStyle = '#94a3b8';
+            ctx.beginPath();
+            ctx.arc(2, -6, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 透明ヘルメット
+            ctx.strokeStyle = 'rgba(0, 240, 255, 0.7)';
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(2, -6, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // アンテナ（触角）
+            ctx.strokeStyle = '#39ff14';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(2, -16); ctx.lineTo(2, -22); ctx.stroke();
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath();
+            ctx.arc(2, -23, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 赤目＆鼻
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(6, -6, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#fda4af';
+            ctx.beginPath();
+            ctx.arc(9, -4, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 足
+            const legWiggle = Math.sin(enemy.animTimer * 2) * 4;
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(-6, 12, 4, 4 + legWiggle);
+            ctx.fillRect(2, 12, 4, 4 - legWiggle);
+        }
+
+        ctx.restore();
+    }
+
+    // 鍵の描画ヘルパー
+    function drawKeyGraphic(x, y, scale = 1) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scale, scale);
+
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 10;
+        ctx.strokeStyle = '#ffd700';
+        ctx.fillStyle = '#ffd700';
+        ctx.lineWidth = 3;
+
+        ctx.beginPath();
+        ctx.arc(0, -8, 7, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 15);
+        ctx.moveTo(0, 7);
+        ctx.lineTo(5, 7);
+        ctx.moveTo(0, 12);
+        ctx.lineTo(5, 12);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    // アイテム描画
+    function drawItem(item) {
+        if (item.x + item.radius < camera.x || item.x - item.radius > camera.x + camera.width) return;
+
+        ctx.save();
+        ctx.translate(item.x, item.y);
+
+        if (item.type === 'COIN') {
+            const scaleX = Math.cos(item.animTimer * 1.5);
+            ctx.scale(Math.abs(scaleX) + 0.1, 1);
+
+            ctx.shadowColor = '#ffe600';
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#ffd700';
+            ctx.beginPath();
+            ctx.arc(0, 0, item.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#b45309';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('★', 0, 0);
+        } else if (item.type === 'KEY') {
+            drawKeyGraphic(0, 0, 1.1);
+        } else if (item.type === 'FISH') {
+            ctx.fillStyle = '#38bdf8';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 12, 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(10, 0); ctx.lineTo(16, -6); ctx.lineTo(16, 6); ctx.closePath();
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // 敵弾丸描画
+    function drawEnemyBullet(b) {
+        ctx.save();
+        ctx.fillStyle = '#ff0055';
+        ctx.shadowColor = '#ff0055';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // パーティクル描画
+    function drawParticle(p) {
+        ctx.save();
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // フローティングテキスト
+    function drawFloatingText(ft) {
+        ctx.save();
+        ctx.fillStyle = ft.color;
+        ctx.font = 'bold 15px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+    }
+
+    // メインループ
+    function gameLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+        lastTime = timestamp;
+
+        update(dt);
+        draw();
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+})();
+
+    </script>
+</body>
+</html>
