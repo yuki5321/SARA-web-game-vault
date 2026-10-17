@@ -1,0 +1,159 @@
+---
+const playlists = [
+  {
+    id: "PLXSmIJw-5Wq4",
+    side: "Side A · Daytime Blend",
+    title: "疲れない作業用BGM ☕ Cozy Cafe Jazz for Deep Focus",
+    mood: "集中したいときや、お昼のコーヒーブレイクにぴったりの心地よいカフェジャズ。",
+    url: "https://www.youtube.com/playlist?list=PLXSmIJw-5Wq4",
+    embedUrl: "https://www.youtube.com/embed/videoseries?list=PLXSmIJw-5Wq4",
+  },
+  {
+    id: "PLFsGA73M1Swo",
+    side: "Side B · Midnight Roast",
+    title: "現実逃避と脱力の真夜中カフェBGM 🌙 Late Night Chill Jazz",
+    mood: "夜更かしタイムや、ゆったり力を抜いてリラックスしたい夜のためのチルジャズ。",
+    url: "https://www.youtube.com/playlist?list=PLFsGA73M1Swo",
+    embedUrl: "https://www.youtube.com/embed/videoseries?list=PLFsGA73M1Swo",
+  },
+];
+---
+
+<section class="page-shell pt-8">
+  <div class="surface relative overflow-hidden p-6 sm:p-8">
+    <div class="pointer-events-none absolute -top-16 -left-16 size-56 rounded-full bg-[#E6DEC8]/45 blur-3xl"></div>
+
+    <div class="relative z-10 grid grid-cols-1 gap-7 lg:grid-cols-12 lg:items-center">
+      <!-- Left: Turntable / Cassette Deck Info & Selector -->
+      <div class="lg:col-span-6">
+        <div class="flex items-center gap-3">
+          <div class="relative grid size-11 shrink-0 place-items-center rounded-full bg-[#2C221E] text-[#FBF9F5] shadow-md">
+            <div class="size-8 rounded-full border border-dashed border-[#E6DEC8]/40 grid place-items-center animate-[spin_10s_linear_infinite]">
+              <span class="size-2.5 rounded-full bg-[#B86B4B]"></span>
+            </div>
+          </div>
+          <div>
+            <p class="eyebrow">Today's Cafe BGM · Vinyl &amp; Cassette</p>
+            <h2 class="font-['Shippori_Mincho',serif] text-xl font-semibold text-[#2C221E] sm:text-2xl">
+              SARA - Cozy Cafe Jazz
+            </h2>
+          </div>
+        </div>
+
+        <p class="mt-3.5 text-xs leading-6 text-[#6E5D53] sm:text-sm">
+          店内に流れるレコードのように、気分に合わせて2つのプレイリスト（Side A / Side B）を切り替えられます。作業中やゲーム選びのお供にどうぞ。
+        </p>
+
+        <!-- Side A / Side B Selector Tabs -->
+        <div class="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2" role="tablist" aria-label="BGMプレイリスト切り替え">
+          {playlists.map((item, idx) => (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={idx === 0 ? "true" : "false"}
+              data-bgm-embed={item.embedUrl}
+              data-bgm-title={item.title}
+              data-bgm-mood={item.mood}
+              data-bgm-url={item.url}
+              data-bgm-side={item.side}
+              class={`bgm-tab group flex flex-col items-start rounded-2xl border p-3.5 text-left transition cursor-pointer ${
+                idx === 0
+                  ? "border-[#2C221E] bg-[#2C221E] text-[#FBF9F5] shadow-sm"
+                  : "border-[#E6DEC8] bg-[#FBF9F5] text-[#2C221E] hover:border-[#2C221E]"
+              }`}
+            >
+              <span class={`font-editorial text-xs italic tracking-wider ${idx === 0 ? "text-[#E6DEC8]" : "text-[#B86B4B]"}`}>
+                {item.side}
+              </span>
+              <span class="mt-1 line-clamp-1 text-xs font-bold leading-snug">
+                {item.title}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <!-- Active Track Note & YouTube Channel Link -->
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-[#E6DEC8] bg-[#FBF9F5]/80 px-4 py-2.5 text-xs">
+          <p id="bgm-active-mood" class="text-[#6E5D53]">
+            {playlists[0].mood}
+          </p>
+          <a
+            id="bgm-external-link"
+            href={playlists[0].url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="shrink-0 font-bold text-[#B86B4B] underline underline-offset-4 transition hover:text-[#2C221E]"
+          >
+            YouTubeで開く ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: Cassette / Player Frame -->
+      <div class="lg:col-span-6">
+        <div class="rounded-2xl border border-[#E6DEC8] bg-[#F3EFE6] p-3 shadow-inner sm:p-4">
+          <div class="mb-2.5 flex items-center justify-between px-1 text-[11px] tracking-widest text-[#6E5D53] uppercase">
+            <span class="flex items-center gap-1.5 font-semibold">
+              <span class="size-2 rounded-full bg-[#B86B4B]"></span>
+              <span id="bgm-active-side">{playlists[0].side}</span>
+            </span>
+            <span class="font-editorial italic text-[#9C8B7E]">Now Spinning on YouTube</span>
+          </div>
+          <div class="aspect-video w-full overflow-hidden rounded-xl border border-[#E6DEC8] bg-[#2C221E] shadow-xs">
+            <iframe
+              id="bgm-iframe"
+              class="h-full w-full border-0"
+              src={playlists[0].embedUrl}
+              title="SARA Cozy Cafe Jazz BGM Player"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const tabs = document.querySelectorAll<HTMLButtonElement>(".bgm-tab");
+  const iframe = document.querySelector<HTMLIFrameElement>("#bgm-iframe");
+  const moodText = document.querySelector<HTMLElement>("#bgm-active-mood");
+  const sideText = document.querySelector<HTMLElement>("#bgm-active-side");
+  const externalLink = document.querySelector<HTMLAnchorElement>("#bgm-external-link");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const embedUrl = tab.dataset.bgmEmbed;
+      const mood = tab.dataset.bgmMood;
+      const url = tab.dataset.bgmUrl;
+      const side = tab.dataset.bgmSide;
+
+      if (iframe && embedUrl && iframe.src !== embedUrl) {
+        iframe.src = embedUrl;
+      }
+      if (moodText && mood) moodText.textContent = mood;
+      if (sideText && side) sideText.textContent = side;
+      if (externalLink && url) externalLink.href = url;
+
+      tabs.forEach((btn) => {
+        const active = btn === tab;
+        btn.setAttribute("aria-selected", String(active));
+        btn.classList.toggle("border-[#2C221E]", active);
+        btn.classList.toggle("bg-[#2C221E]", active);
+        btn.classList.toggle("text-[#FBF9F5]", active);
+        btn.classList.toggle("shadow-sm", active);
+        btn.classList.toggle("border-[#E6DEC8]", !active);
+        btn.classList.toggle("bg-[#FBF9F5]", !active);
+        btn.classList.toggle("text-[#2C221E]", !active);
+
+        const sideSpan = btn.querySelector("span:first-child");
+        if (sideSpan) {
+          sideSpan.classList.toggle("text-[#E6DEC8]", active);
+          sideSpan.classList.toggle("text-[#B86B4B]", !active);
+        }
+      });
+    });
+  });
+</script>

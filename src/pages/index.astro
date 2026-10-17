@@ -1,5 +1,6 @@
 ---
 import AdBanner from "../components/AdBanner.astro";
+import CafeBgmPlayer from "../components/CafeBgmPlayer.astro";
 import GameCard from "../components/GameCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getGames } from "../lib/games";
@@ -27,12 +28,15 @@ const description = "インストール不要、ブラウザですぐ遊べる�
             カフェでひと息つくように、<br class="hidden sm:block" />気軽に遊べるゲームパーク。
           </h1>
           <p class="mt-5 max-w-xl text-sm leading-7 text-[#6E5D53] sm:text-base">
-            お気に入りのドリンクを片手に楽しめる、ブラウザ完結のオリジナルゲームをセレクト。スマホでもPCでも、ページを開けばすぐにスタートできます。
+            お気に入りのドリンクとカフェジャズを片手に楽しめる、ブラウザ完結のオリジナルゲームをセレクト。スマホでもPCでも、ページを開けばすぐにスタートできます。
           </p>
-          <div class="mt-8 flex flex-wrap items-center gap-4">
+          <div class="mt-8 flex flex-wrap items-center gap-3">
             <a href="#games" class="btn-espresso">
               <span>Today's Menu を見る</span>
               <span aria-hidden="true">↓</span>
+            </a>
+            <a href="#cafe-bgm" class="btn-outline-cafe">
+              <span>♪ Today's Cafe BGM</span>
             </a>
           </div>
         </div>
@@ -49,7 +53,14 @@ const description = "インストール不要、ブラウザですぐ遊べる�
         </div>
       </div>
     </div>
-    <div class="mt-6"><AdBanner placement="トップページ上部" /></div>
+  </section>
+
+  <div id="cafe-bgm">
+    <CafeBgmPlayer />
+  </div>
+
+  <section class="page-shell pt-6">
+    <AdBanner placement="トップページ上部" />
   </section>
 
   <section id="games" class="page-shell py-14">
