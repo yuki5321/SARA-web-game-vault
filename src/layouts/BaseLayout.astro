@@ -9,7 +9,7 @@ const {
   gameCount = 0,
   canonicalPath = "/",
 } = Astro.props;
-const pageTitle = title === "Webゲーム倉庫" ? title : `${title} | Webゲーム倉庫`;
+const pageTitle = title === "SARA Game Park" ? title : `${title} | SARA Game Park`;
 const normalizedCanonicalPath = canonicalPath === "/" ? "/" : `${canonicalPath.replace(/\/+$/, "")}/`;
 const canonical = Astro.site ? new URL(normalizedCanonicalPath, Astro.site) : undefined;
 ---
@@ -22,7 +22,7 @@ const canonical = Astro.site ? new URL(normalizedCanonicalPath, Astro.site) : un
     <meta name="description" content={description} />
     <meta name="theme-color" content="#6d5dfc" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Webゲーム倉庫" />
+    <meta property="og:site_name" content="SARA Game Park" />
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
     {canonical && <meta property="og:url" content={canonical} />}

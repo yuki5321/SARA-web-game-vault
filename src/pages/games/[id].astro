@@ -46,7 +46,7 @@ const structuredData = {
       <button id="reload-game" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-violet-400 hover:text-violet-700" type="button">↻ ゲームを再読み込み</button>
     </header>
 
-    <div class="mx-auto mt-6 w-full {game.orientation === 'portrait' ? 'max-w-lg' : 'max-w-4xl'}">
+    <div class={`mx-auto mt-6 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
       <div class="surface overflow-hidden" style={`--game-aspect: ${game.aspectRatio}`}>
         <iframe
           id="game-frame"
@@ -63,10 +63,10 @@ const structuredData = {
 
     <section class="prose-copy surface mx-auto mt-8 max-w-4xl p-6 sm:p-8">
       <h2 class="!mt-0">ゲームの概要</h2>
-      <p>{game.description}</p>
+      <p class="whitespace-pre-line">{game.description}</p>
       <h2>遊び方</h2>
-      <p>{game.howToPlay}</p>
-      {game.tips && <><h2>攻略のコツ</h2><p>{game.tips}</p></>}
+      <p class="whitespace-pre-line">{game.howToPlay}</p>
+      {game.tips && <><h2>攻略のコツ</h2><p class="whitespace-pre-line">{game.tips}</p></>}
       <p>操作に反応しない場合は、ゲーム画面を一度タップしてから操作してください。ゲームの記録はこのブラウザー内に保存されます。</p>
       <p class="text-sm">制作者: {game.author} · 公開日: <time datetime={game.publishedAt}>{game.publishedAt}</time></p>
     </section>
