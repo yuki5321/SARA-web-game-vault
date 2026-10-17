@@ -74,8 +74,18 @@ const structuredData = {
       <p class="whitespace-pre-line">{game.howToPlay}</p>
       {game.tips && <><h2>攻略のコツ</h2><p class="whitespace-pre-line">{game.tips}</p></>}
       <p class="text-xs text-[#9C8B7E]">※ 操作に反応しない場合は、ゲーム画面を一度タップしてから操作してください。ゲームの記録はこのブラウザー内に保存されます。</p>
-      <div class="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-[#E6DEC8] pt-4 text-xs text-[#9C8B7E]">
-        <span>Roasted by: <strong class="text-[#6E5D53]">{game.author}</strong></span>
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-[#E6DEC8] pt-4 text-xs text-[#9C8B7E]">
+        <span>
+          Roasted by: <strong class="text-[#6E5D53]">{game.author}</strong>
+          <a
+            href="https://linktr.ee/sara_wallpaper68"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="ml-2 inline-flex items-center gap-1 font-bold text-[#B86B4B] underline underline-offset-4 hover:text-[#2C221E]"
+          >
+            Official Links (Linktree) ↗
+          </a>
+        </span>
         <span>Date: <time datetime={game.publishedAt}>{game.publishedAt.replaceAll("-", ".")}</time></span>
       </div>
     </section>

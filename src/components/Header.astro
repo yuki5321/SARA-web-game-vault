@@ -11,9 +11,19 @@ const { gameCount } = Astro.props;
         <span class="mt-0.5 text-[10px] tracking-[0.22em] text-[#9C8B7E] uppercase">Playful Blend &amp; Arcade</span>
       </div>
     </a>
-    <nav class="flex items-center gap-5 text-sm font-medium text-[#6E5D53]" aria-label="メインナビゲーション">
-      <a class="transition hover:text-[#2C221E]" href="/#games">Menu / ゲーム一覧</a>
-      <span class="cafe-pill">
+    <nav class="flex items-center gap-3 sm:gap-5 text-sm font-medium text-[#6E5D53]" aria-label="メインナビゲーション">
+      <a class="hidden transition hover:text-[#2C221E] sm:inline" href="/#games">Menu / ゲーム一覧</a>
+      <a
+        href="https://linktr.ee/sara_wallpaper68"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1.5 rounded-full border border-[#C5B49E] bg-[#FFFFFF] px-3.5 py-1.5 text-xs font-bold tracking-wider text-[#2C221E] shadow-2xs transition hover:border-[#2C221E] hover:bg-[#2C221E] hover:text-[#FBF9F5]"
+      >
+        <span class="font-editorial italic text-[#B86B4B]">✦</span>
+        <span>SARA Links</span>
+        <span aria-hidden="true" class="text-[10px] opacity-70">↗</span>
+      </a>
+      <span class="cafe-pill hidden md:inline-flex">
         <span class="size-1.5 rounded-full bg-[#B86B4B]"></span>
         <span>Today's Blend: {gameCount}</span>
       </span>
