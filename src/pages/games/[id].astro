@@ -46,24 +46,72 @@ const structuredData = {
         <p class="eyebrow">{game.tags.map((t) => `#${t}`).join("  ")}</p>
         <h1 class="mt-1.5 font-['Shippori_Mincho',serif] text-2xl font-bold text-[#2C221E] sm:text-3xl">{game.title}</h1>
       </div>
-      <button id="reload-game" class="btn-outline-cafe cursor-pointer" type="button">↻ ゲームを再読み込み</button>
+      {game.externalUrl ? (
+        <a
+          href={game.externalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-espresso"
+        >
+          <span>専用ページで遊ぶ</span>
+          <span aria-hidden="true">↗</span>
+        </a>
+      ) : (
+        <button id="reload-game" class="btn-outline-cafe cursor-pointer" type="button">↻ ゲームを再読み込み</button>
+      )}
     </header>
 
-    <div class={`mx-auto mt-8 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
-      <div class="surface overflow-hidden p-2 sm:p-3" style={`--game-aspect: ${game.aspectRatio}`}>
-        <div class="overflow-hidden rounded-xl border border-[#E6DEC8]">
-          <iframe
-            id="game-frame"
-            class="game-frame"
-            title={`${game.title} ゲーム画面`}
-            src={`/games/${game.id}/game.html`}
-            allow="fullscreen"
-            loading="eager"
-            referrerpolicy="strict-origin-when-cross-origin"
-          ></iframe>
+    {game.externalUrl ? (
+      <div class="mx-auto mt-8 max-w-4xl">
+        <div class="surface overflow-hidden p-4 sm:p-6">
+          <div class="relative overflow-hidden rounded-2xl border border-[#E6DEC8] bg-[#2C221E]">
+            {game.thumbnail && (
+              <img
+                src={game.thumbnail}
+                alt={game.title}
+                class="aspect-[16/10] w-full object-cover opacity-85 transition duration-500 hover:scale-[1.02]"
+              />
+            )}
+            <div class=" inset-0 flex flex-col items-center justify-end bg-gradient-to-t from-[#1E1612]/95 via-[#1E1612]/50 to-transparent p-6 text-center text-[#FBF9F5] sm:absolute sm:p-10">
+              <span class="font-editorial rounded-full border border-[#E6DEC8]/40 bg-[#2C221E]/80 px-3.5 py-1 text-xs italic tracking-widest text-[#E6DEC8] backdrop-blur-xs">
+                Special Web App · Fullscreen Recommended
+              </span>
+              <h2 class="mt-3 font-['Shippori_Mincho',serif] text-xl font-bold sm:text-3xl">
+                {game.title}
+              </h2>
+              <p class="mt-2 max-w-lg text-xs leading-relaxed text-[#E6DEC8]/90 sm:text-sm">
+                このゲームはオンラインランキング＆物理キーボード対応の専用特設サイトで公開されています。下のボタンから全画面で快適にお楽しみください！
+              </p>
+              <a
+                href={game.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-5 inline-flex items-center gap-2 rounded-full bg-[#FBF9F5] px-7 py-3.5 text-sm font-bold tracking-wider text-[#2C221E] shadow-lg transition hover:-translate-y-0.5 hover:bg-[#B86B4B] hover:text-[#FBF9F5]"
+              >
+                <span>▶ ゲームを起動する（特設サイトを開く）</span>
+                <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    ) : (
+      <div class={`mx-auto mt-8 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
+        <div class="surface overflow-hidden p-2 sm:p-3" style={`--game-aspect: ${game.aspectRatio}`}>
+          <div class="overflow-hidden rounded-xl border border-[#E6DEC8]">
+            <iframe
+              id="game-frame"
+              class="game-frame"
+              title={`${game.title} ゲーム画面`}
+              src={`/games/${game.id}/game.html`}
+              allow="fullscreen"
+              loading="eager"
+              referrerpolicy="strict-origin-when-cross-origin"
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    )}
     <div class="mx-auto mt-10 max-w-4xl"><AdBanner placement="ゲーム画面下部" /></div>
 
     <section class="prose-copy surface mx-auto mt-8 max-w-4xl p-6 sm:p-10">

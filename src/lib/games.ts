@@ -12,6 +12,7 @@ export type Game = {
   orientation: "portrait" | "landscape";
   aspectRatio: string;
   thumbnail?: string;
+  externalUrl?: string;
   publishedAt: string;
 };
 
@@ -71,6 +72,9 @@ function validateGame(data: unknown, directoryName: string): Game {
   if (data.thumbnail !== undefined && (typeof data.thumbnail !== "string" || !data.thumbnail.startsWith(`/games/${id}/`))) {
     throw new Error(`${gamePath}/game.json: "thumbnail" must be a local path inside the game's directory.`);
   }
+  if (data.externalUrl !== undefined && (typeof data.externalUrl !== "string" || !/^https?:\/\//.test(data.externalUrl))) {
+    throw new Error(`${gamePath}/game.json: "externalUrl" must be a valid http(s) URL when provided.`);
+  }
 
   return {
     id,
@@ -84,6 +88,7 @@ function validateGame(data: unknown, directoryName: string): Game {
     tags: tags.map((tag) => (tag as string).trim()),
     ...(typeof data.tips === "string" ? { tips: data.tips.trim() } : {}),
     ...(typeof data.thumbnail === "string" ? { thumbnail: data.thumbnail } : {}),
+    ...(typeof data.externalUrl === "string" ? { externalUrl: data.externalUrl.trim() } : {}),
   };
 }
 
@@ -101,9 +106,6 @@ export function getGames(): Game[] {
       if (!statSync(metadataPath, { throwIfNoEntry: false })?.isFile()) {
         throw new Error(`Missing metadata file: public/games/${entry.name}/game.json`);
       }
-      if (!statSync(gameFilePath, { throwIfNoEntry: false })?.isFile()) {
-        throw new Error(`Missing game file: public/games/${entry.name}/game.html`);
-      }
 
       let data: unknown;
       try {
@@ -111,7 +113,11 @@ export function getGames(): Game[] {
       } catch (error) {
         throw new Error(`Could not parse public/games/${entry.name}/game.json: ${String(error)}`);
       }
-      return validateGame(data, entry.name);
+      const validated = validateGame(data, entry.name);
+      if (!validated.externalUrl && !statSync(gameFilePath, { throwIfNoEntry: false })?.isFile()) {
+        throw new Error(`Missing game file: public/games/${entry.name}/game.html`);
+      }
+      return validated;
     })
     .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt) || left.title.localeCompare(right.title));
 }
