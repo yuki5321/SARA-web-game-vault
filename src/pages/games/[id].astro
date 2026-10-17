@@ -36,45 +36,55 @@ const structuredData = {
 
 <BaseLayout title={game.title} description={description} gameCount={games.length} canonicalPath={`/games/${game.id}`}>
   <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />
-  <article class="page-shell py-7 sm:py-10">
-    <a href="/#games" class="inline-flex items-center gap-2 text-sm font-bold text-violet-700 hover:text-violet-900"><span aria-hidden="true">←</span> ゲーム一覧に戻る</a>
-    <header class="mt-5 flex flex-wrap items-end justify-between gap-4">
+  <article class="page-shell py-8 sm:py-12">
+    <a href="/#games" class="inline-flex items-center gap-2 text-xs font-bold tracking-wider text-[#6E5D53] transition hover:text-[#2C221E]">
+      <span aria-hidden="true">←</span>
+      <span>BACK TO MENU / ゲーム一覧に戻る</span>
+    </a>
+    <header class="mt-5 flex flex-wrap items-end justify-between gap-4 border-b border-[#E6DEC8] pb-5">
       <div>
-        <p class="eyebrow">{game.tags.join(" · ")}</p>
-        <h1 class="mt-1 text-3xl font-black text-slate-900">{game.title}</h1>
+        <p class="eyebrow">{game.tags.map((t) => `#${t}`).join("  ")}</p>
+        <h1 class="mt-1.5 font-['Shippori_Mincho',serif] text-2xl font-bold text-[#2C221E] sm:text-3xl">{game.title}</h1>
       </div>
-      <button id="reload-game" class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-violet-400 hover:text-violet-700" type="button">↻ ゲームを再読み込み</button>
+      <button id="reload-game" class="btn-outline-cafe cursor-pointer" type="button">↻ ゲームを再読み込み</button>
     </header>
 
-    <div class={`mx-auto mt-6 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
-      <div class="surface overflow-hidden" style={`--game-aspect: ${game.aspectRatio}`}>
-        <iframe
-          id="game-frame"
-          class="game-frame"
-          title={`${game.title} ゲーム画面`}
-          src={`/games/${game.id}/game.html`}
-          allow="fullscreen"
-          loading="eager"
-          referrerpolicy="strict-origin-when-cross-origin"
-        ></iframe>
+    <div class={`mx-auto mt-8 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
+      <div class="surface overflow-hidden p-2 sm:p-3" style={`--game-aspect: ${game.aspectRatio}`}>
+        <div class="overflow-hidden rounded-xl border border-[#E6DEC8]">
+          <iframe
+            id="game-frame"
+            class="game-frame"
+            title={`${game.title} ゲーム画面`}
+            src={`/games/${game.id}/game.html`}
+            allow="fullscreen"
+            loading="eager"
+            referrerpolicy="strict-origin-when-cross-origin"
+          ></iframe>
+        </div>
       </div>
     </div>
     <div class="mx-auto mt-10 max-w-4xl"><AdBanner placement="ゲーム画面下部" /></div>
 
-    <section class="prose-copy surface mx-auto mt-8 max-w-4xl p-6 sm:p-8">
-      <h2 class="!mt-0">ゲームの概要</h2>
+    <section class="prose-copy surface mx-auto mt-8 max-w-4xl p-6 sm:p-10">
+      <p class="eyebrow">Recipe &amp; Guide</p>
+      <h2 class="!mt-1">ゲームの概要</h2>
       <p class="whitespace-pre-line">{game.description}</p>
       <h2>遊び方</h2>
       <p class="whitespace-pre-line">{game.howToPlay}</p>
       {game.tips && <><h2>攻略のコツ</h2><p class="whitespace-pre-line">{game.tips}</p></>}
-      <p>操作に反応しない場合は、ゲーム画面を一度タップしてから操作してください。ゲームの記録はこのブラウザー内に保存されます。</p>
-      <p class="text-sm">制作者: {game.author} · 公開日: <time datetime={game.publishedAt}>{game.publishedAt}</time></p>
+      <p class="text-xs text-[#9C8B7E]">※ 操作に反応しない場合は、ゲーム画面を一度タップしてから操作してください。ゲームの記録はこのブラウザー内に保存されます。</p>
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-dashed border-[#E6DEC8] pt-4 text-xs text-[#9C8B7E]">
+        <span>Roasted by: <strong class="text-[#6E5D53]">{game.author}</strong></span>
+        <span>Date: <time datetime={game.publishedAt}>{game.publishedAt.replaceAll("-", ".")}</time></span>
+      </div>
     </section>
 
     {relatedGames.length > 0 && (
-      <section class="mt-12">
-        <h2 class="text-2xl font-black text-slate-900">こちらのゲームもおすすめ</h2>
-        <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <section class="mt-14">
+        <p class="eyebrow">Recommended</p>
+        <h2 class="mt-1 font-['Shippori_Mincho',serif] text-2xl font-semibold text-[#2C221E]">こちらのゲームもおすすめ</h2>
+        <div class="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {relatedGames.map((relatedGame) => <GameCard game={relatedGame} />)}
         </div>
       </section>

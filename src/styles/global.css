@@ -2,9 +2,22 @@
 
 :root {
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #1f2440;
-  background: #f7f8fc;
+  --bg-cream: #FBF9F5;
+  --bg-oat: #F3EFE6;
+  --bg-card: #FFFFFF;
+  --text-espresso: #2C221E;
+  --text-mocha: #6E5D53;
+  --text-latte: #9C8B7E;
+  --border-sand: #E6DEC8;
+  --border-espresso: #3A2E28;
+  --accent-terracotta: #B86B4B;
+  --accent-sage: #7A8B7B;
+
+  font-family: "Zen Kaku Gothic New", "Hiragino Kaku Gothic ProN", "Noto Sans JP", ui-sans-serif, system-ui, sans-serif;
+  color: var(--text-espresso);
+  background-color: var(--bg-cream);
+  background-image: radial-gradient(rgba(44, 34, 30, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -12,15 +25,133 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; }
-a { color: inherit; }
+a { color: inherit; text-decoration: none; }
 button, a { -webkit-tap-highlight-color: transparent; }
-.page-shell { width: min(100% - 2rem, 1180px); margin-inline: auto; }
-.eyebrow { color: #6d5dfc; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.surface { border: 1px solid #e9eaf2; border-radius: 1rem; background: #fff; box-shadow: 0 8px 30px rgb(35 39 75 / 5%); }
-.ad-placeholder { display: grid; min-height: 90px; place-items: center; border: 1px dashed #c9ccda; border-radius: .75rem; color: #85899b; background: #f2f3f8; font-size: .75rem; }
-.prose-copy p { margin: .8rem 0; line-height: 1.85; color: #555b70; }
-.prose-copy h2 { margin: 2rem 0 .5rem; font-size: 1.25rem; font-weight: 800; }
-.game-frame { display: block; width: 100%; aspect-ratio: var(--game-aspect, 3 / 4); border: 0; background: #fff; }
+
+.font-editorial {
+  font-family: "Cormorant Garamond", "Shippori Mincho", Georgia, serif;
+}
+
+.page-shell {
+  width: min(100% - 2rem, 1120px);
+  margin-inline: auto;
+}
+
+.eyebrow {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  color: var(--accent-terracotta);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.surface {
+  border: 1px solid var(--border-sand);
+  border-radius: 1.25rem;
+  background: var(--bg-card);
+  box-shadow: 0 10px 30px -10px rgba(44, 34, 30, 0.06);
+}
+
+.surface-warm {
+  border: 1px solid var(--border-sand);
+  border-radius: 1.5rem;
+  background: var(--bg-oat);
+}
+
+.cafe-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid var(--border-sand);
+  border-radius: 9999px;
+  background: var(--bg-cream);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-mocha);
+}
+
+.btn-espresso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: var(--text-espresso);
+  color: var(--bg-cream);
+  padding: 0.75rem 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+}
+
+.btn-espresso:hover {
+  background: var(--accent-terracotta);
+  transform: translateY(-1px);
+}
+
+.btn-outline-cafe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-sand);
+  background: var(--bg-card);
+  color: var(--text-espresso);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-cafe:hover {
+  border-color: var(--text-espresso);
+  background: var(--bg-oat);
+}
+
+.ad-placeholder {
+  display: grid;
+  min-height: 88px;
+  place-items: center;
+  border: 1px dashed var(--border-sand);
+  border-radius: 1rem;
+  color: var(--text-latte);
+  background: rgba(243, 239, 230, 0.5);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+}
+
+.prose-copy p {
+  margin: 0.85rem 0;
+  line-height: 1.9;
+  color: var(--text-mocha);
+}
+
+.prose-copy h2 {
+  margin: 2.2rem 0 0.6rem;
+  font-family: "Shippori Mincho", serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-espresso);
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--border-sand);
+  padding-bottom: 0.4rem;
+}
+
+.game-frame {
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--game-aspect, 3 / 4);
+  border: 0;
+  background: #fff;
+}
+
 @media (min-width: 768px) {
-  .page-shell { width: min(100% - 3rem, 1180px); }
+  .page-shell {
+    width: min(100% - 3rem, 1120px);
+  }
 }
