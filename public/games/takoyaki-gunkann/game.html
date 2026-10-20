@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>PARODIUS MINI - Ponkotsu Rank Edition</title>
   <style>
     * {
@@ -10,95 +10,125 @@
       margin: 0;
       padding: 0;
       user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      touch-action: none;
+      background: #11141a;
     }
     body {
-      background: #11141a;
       color: #fff;
       font-family: 'Courier New', Courier, monospace, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      overflow-x: hidden;
-      padding: 10px;
+      justify-content: space-between;
+      padding: clamp(2px, 0.8vh, 6px) 4px;
+      box-sizing: border-box;
     }
     h1 {
-      font-size: 20px;
-      margin-bottom: 6px;
+      font-size: clamp(11px, 3vw, 16px);
+      margin: 1px 0;
       color: #ff477e;
       text-shadow: 2px 2px #ffe600, -2px -2px #00f0ff;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       text-align: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    body.is-iframe h1,
+    body.is-iframe .controls-hint {
+      display: none !important;
     }
     .game-wrapper {
       position: relative;
       background: #000;
-      border: 4px solid #444;
-      border-radius: 8px;
-      box-shadow: 0 0 25px rgba(0, 240, 255, 0.3), 0 0 10px rgba(255, 71, 126, 0.3);
+      border: 2px solid #444;
+      border-radius: 6px;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.25), 0 0 8px rgba(255, 71, 126, 0.25);
       display: flex;
       flex-direction: column;
       align-items: center;
+      max-width: 100%;
+      min-height: 0;
+      flex-shrink: 1;
     }
     canvas {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       display: block;
       background: #000;
-      width: 640px;
-      height: 480px;
-      max-width: 95vw;
-      max-height: 70vh;
+      width: auto;
+      height: auto;
+      max-width: min(580px, 96vw);
+      max-height: min(380px, 46dvh);
       aspect-ratio: 4 / 3;
+      touch-action: none;
+      cursor: crosshair;
     }
-    /* パワーアップゲージUI */
+    /* パワーアップゲージUI (スマホ画面幅でも絶対に横スクロールしないよう自動縮小) */
     .powerup-bar {
       width: 100%;
       background: #1a1a24;
       display: flex;
-      justify-content: center;
-      gap: 6px;
-      padding: 8px 10px;
-      border-top: 3px solid #333;
+      justify-content: space-between;
+      gap: 2px;
+      padding: 2px 3px;
+      border-top: 2px solid #333;
+      box-sizing: border-box;
+      flex-shrink: 0;
     }
     .gauge-slot {
+      flex: 1 1 0;
+      min-width: 0;
       background: #0d0d12;
-      border: 2px solid #555;
+      border: 1px solid #555;
       color: #888;
-      font-size: 11px;
+      font-size: clamp(8px, 2.2vw, 11px);
       font-weight: bold;
-      padding: 4px 10px;
-      border-radius: 4px;
+      padding: 2px 1px;
+      border-radius: 3px;
       text-align: center;
-      min-width: 78px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: clip;
       transition: all 0.1s;
     }
     .gauge-slot.active {
       background: #ffe600;
       color: #000;
       border-color: #fff;
-      box-shadow: 0 0 10px #ffe600;
-      transform: scale(1.05);
+      box-shadow: 0 0 8px #ffe600;
+      transform: scale(1.03);
     }
     .gauge-slot.obtained {
       border-color: #00ffcc;
       color: #00ffcc;
     }
-    /* コントロール案内・ボタン */
+    /* コントロール案内（PCのみ表示、スマホ・小画面では非表示にして画面圧迫を防止） */
     .controls-hint {
-      margin-top: 8px;
-      font-size: 12px;
+      font-size: 11px;
       color: #bbb;
       text-align: center;
-      line-height: 1.6;
+      line-height: 1.4;
       max-width: 640px;
+      flex-shrink: 0;
+    }
+    @media (max-width: 768px), (max-height: 620px) {
+      .controls-hint {
+        display: none;
+      }
     }
     .key-badge {
       background: #333;
       color: #ffe600;
-      padding: 2px 6px;
-      border-radius: 4px;
+      padding: 1px 5px;
+      border-radius: 3px;
       border: 1px solid #555;
       font-weight: bold;
     }
@@ -106,71 +136,136 @@
       background: #ff0055;
       color: #fff;
       font-weight: bold;
-      padding: 1px 5px;
+      padding: 1px 4px;
       border-radius: 3px;
     }
     .rank-badge {
       background: #ffe600;
       color: #000;
       font-weight: bold;
-      padding: 1px 6px;
+      padding: 1px 5px;
       border-radius: 3px;
     }
-    /* モバイル/タッチ操作ボタン */
-    .touch-controls {
-      display: none;
-      width: 100%;
-      max-width: 640px;
-      margin-top: 10px;
-      justify-content: space-between;
+    /* 画面直タッチ操作ガイド */
+    .touch-hint-bar {
+      font-size: 10px;
+      color: #00f0ff;
+      text-align: center;
+      margin: 1px 0;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
     }
-    @media (max-width: 768px) {
-      .touch-controls {
-        display: flex;
+    @media (min-width: 769px) and (min-height: 621px) {
+      .touch-hint-bar {
+        display: none;
       }
     }
-    .dpad, .action-btns {
-      display: grid;
-      gap: 6px;
+    /* モバイル/タッチ操作ボタンパネル (常に画面下部に収まるレスポンシブ設計) */
+    .touch-controls {
+      display: flex;
+      width: 100%;
+      max-width: 480px;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 6px;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      gap: 10px;
+      flex-shrink: 0;
     }
     .dpad {
-      grid-template-columns: repeat(3, 44px);
-      grid-template-rows: repeat(3, 44px);
+      display: grid;
+      grid-template-columns: repeat(3, clamp(34px, 9.5vw, 42px));
+      grid-template-rows: repeat(3, clamp(34px, 9.5vw, 42px));
+      gap: 2px;
+      touch-action: none;
+      user-select: none;
     }
     .touch-btn {
       background: #2a2d3d;
       color: #fff;
       border: 2px solid #4f5366;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: clamp(13px, 3.8vw, 17px);
       font-weight: bold;
       display: flex;
       align-items: center;
       justify-content: center;
-      touch-action: manipulation;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
-    .touch-btn:active {
-      background: #ff477e;
+    .touch-btn:active, .touch-btn.active {
+      background: #ff477e !important;
+      border-color: #ffe600 !important;
+      color: #fff !important;
+      transform: scale(0.95);
     }
     .action-btns {
-      grid-template-columns: repeat(2, 60px);
-      align-items: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      touch-action: none;
+      width: clamp(120px, 34vw, 155px);
+    }
+    .action-btn-row {
+      display: flex;
+      gap: 4px;
+      width: 100%;
     }
     .action-btn-item {
-      height: 54px;
-      border-radius: 27px;
+      flex: 1;
+      height: clamp(34px, 9.5vw, 42px);
+      border-radius: 8px;
+      font-size: clamp(10px, 2.6vw, 12px);
+      line-height: 1.15;
+      text-align: center;
+      touch-action: none;
     }
     .mute-btn {
       position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(0,0,0,0.6);
-      border: 1px solid #666;
+      top: 6px;
+      right: 6px;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid #777;
       color: #fff;
-      padding: 4px 8px;
+      padding: 3px 6px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11px;
+      z-index: 10;
+    }
+    /* 横向きスマホ対応（ゲームボーイ/Switch風に左右配置） */
+    @media (max-height: 520px) and (orientation: landscape) {
+      body {
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+        padding: 4px;
+      }
+      h1, .touch-hint-bar, .controls-hint {
+        display: none !important;
+      }
+      .game-wrapper {
+        order: 2;
+      }
+      canvas {
+        max-height: 80dvh;
+        max-width: 60vw;
+      }
+      .touch-controls {
+        order: 1;
+        width: auto;
+        max-width: none;
+        display: contents;
+      }
+      .dpad {
+        order: 1;
+      }
+      .action-btns {
+        order: 3;
+      }
     }
   </style>
 </head>
@@ -199,26 +294,35 @@
     <span class="rank-badge">新機能</span> ゲーム終了時に<strong>「○○秒で撃沈！」＆「ランク：ポンコツ」などのお笑い称号</strong>を判定表示！
   </div>
 
+  <div class="touch-hint-bar">👆 画面ドラッグ移動 ＆ AUTO自動連射 (下のボタンでも操作可能)</div>
+
   <!-- タッチ操作パネル -->
   <div class="touch-controls">
-    <div class="dpad">
+    <div class="dpad" id="dpad">
       <div></div>
-      <button class="touch-btn" id="t-up">▲</button>
+      <button class="touch-btn" id="t-up" type="button">▲</button>
       <div></div>
-      <button class="touch-btn" id="t-left">◀</button>
+      <button class="touch-btn" id="t-left" type="button">◀</button>
+      <div style="background: rgba(255,255,255,0.06); border-radius: 6px;"></div>
+      <button class="touch-btn" id="t-right" type="button">▶</button>
       <div></div>
-      <button class="touch-btn" id="t-right">▶</button>
-      <div></div>
-      <button class="touch-btn" id="t-down">▼</button>
+      <button class="touch-btn" id="t-down" type="button">▼</button>
       <div></div>
     </div>
     <div class="action-btns">
-      <button class="touch-btn action-btn-item" id="t-shot" style="background:#ff477e;">AUTO<br>SHOT</button>
-      <button class="touch-btn action-btn-item" id="t-power" style="background:#ffe600; color:#000;">POWER<br>(X)</button>
+      <div class="action-btn-row">
+        <button class="touch-btn action-btn-item" id="t-auto" type="button" style="background:#00d26a; color:#fff;">AUTO<br>ON</button>
+        <button class="touch-btn action-btn-item" id="t-shot" type="button" style="background:#ff0055; color:#fff;">SHOT<br>(連射)</button>
+      </div>
+      <button class="touch-btn action-btn-item" id="t-power" type="button" style="width: 100%; background:#ffe600; color:#000;">POWER (X)</button>
     </div>
   </div>
 
 <script>
+if (window.self !== window.top) {
+  try { document.body.classList.add('is-iframe'); } catch(e) {}
+}
+
 /* ==========================================================================
    8-BIT SYNTH AUDIO ENGINE
    ========================================================================== */
@@ -472,65 +576,240 @@ window.addEventListener('keyup', e => {
   if (['KeyX', 'ShiftLeft', 'ShiftRight'].includes(e.code)) keys.power = false;
 });
 
-function bindTouch(id, keyName, onDownAction = null) {
-  const btn = document.getElementById(id);
-  if (!btn) return;
-  const start = (e) => {
+// D-Pad スライド＆マルチタッチ完全対応
+const dpad = document.getElementById('dpad');
+const dpadBtns = {
+  up: document.getElementById('t-up'),
+  down: document.getElementById('t-down'),
+  left: document.getElementById('t-left'),
+  right: document.getElementById('t-right')
+};
+
+function updateDpadFromTouch(touch) {
+  if (!dpad) return;
+  const rect = dpad.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const dx = touch.clientX - cx;
+  const dy = touch.clientY - cy;
+  const deadzone = rect.width * 0.14;
+
+  keys.left = dx < -deadzone;
+  keys.right = dx > deadzone;
+  keys.up = dy < -deadzone;
+  keys.down = dy > deadzone;
+
+  if (dpadBtns.left) dpadBtns.left.classList.toggle('active', keys.left);
+  if (dpadBtns.right) dpadBtns.right.classList.toggle('active', keys.right);
+  if (dpadBtns.up) dpadBtns.up.classList.toggle('active', keys.up);
+  if (dpadBtns.down) dpadBtns.down.classList.toggle('active', keys.down);
+}
+
+function resetDpad() {
+  keys.up = false;
+  keys.down = false;
+  keys.left = false;
+  keys.right = false;
+  Object.values(dpadBtns).forEach(b => { if (b) b.classList.remove('active'); });
+}
+
+let dpadTouchId = null;
+
+if (dpad) {
+  dpad.addEventListener('touchstart', (e) => {
     e.preventDefault();
     audio.init();
     if (!audio.currentTrack && !audio.muted && state.current === 'PLAY') {
       audio.playBGM(state.boss ? 'boss' : 'stage', state.boss && state.boss.isEnraged);
     }
-    keys[keyName] = true;
-    if (onDownAction) onDownAction();
-  };
-  const end = (e) => {
+    const touch = e.changedTouches[0];
+    dpadTouchId = touch.identifier;
+    updateDpadFromTouch(touch);
+  }, { passive: false });
+
+  dpad.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    keys[keyName] = false;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
+        updateDpadFromTouch(e.changedTouches[i]);
+        break;
+      }
+    }
+  }, { passive: false });
+
+  const endDpad = (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
+        dpadTouchId = null;
+        resetDpad();
+        break;
+      }
+    }
   };
-  btn.addEventListener('touchstart', start, {passive: false});
-  btn.addEventListener('touchend', end, {passive: false});
-  btn.addEventListener('touchcancel', end, {passive: false});
-  btn.addEventListener('mousedown', start);
-  btn.addEventListener('mouseup', end);
-  btn.addEventListener('mouseleave', end);
+  dpad.addEventListener('touchend', endDpad, { passive: false });
+  dpad.addEventListener('touchcancel', endDpad, { passive: false });
 }
 
-// マウスが画面外で離された場合やウィンドウが非アクティブになった時にキーが押しっぱなしになるのを防止
-window.addEventListener('mouseup', () => {
-  keys.up = false;
-  keys.down = false;
-  keys.left = false;
-  keys.right = false;
-  keys.shot = false;
-  keys.power = false;
-});
-window.addEventListener('blur', () => {
-  keys.up = false;
-  keys.down = false;
-  keys.left = false;
-  keys.right = false;
-  keys.shot = false;
-  keys.power = false;
-});
+// 個別ボタンマウス操作用（PCテスト用フォールバック）
+function bindMouseBtn(id, keyName) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    audio.init();
+    keys[keyName] = true;
+    btn.classList.add('active');
+  });
+  btn.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    keys[keyName] = false;
+    btn.classList.remove('active');
+  });
+  btn.addEventListener('mouseleave', () => {
+    keys[keyName] = false;
+    btn.classList.remove('active');
+  });
+}
+bindMouseBtn('t-up', 'up');
+bindMouseBtn('t-down', 'down');
+bindMouseBtn('t-left', 'left');
+bindMouseBtn('t-right', 'right');
 
-// キャンバスタッチ/クリックでもゲームオーバーからリスタート可能
+// キャンバス直接タッチ＆ドラッグ移動（スマホで直感的な移動＆攻撃！）
+let canvasTouchId = null;
+let touchStartX = 0;
+let touchStartY = 0;
+let playerStartX = 0;
+let playerStartY = 0;
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  audio.init();
+  if (!audio.currentTrack && !audio.muted && state.current === 'PLAY') {
+    audio.playBGM(state.boss ? 'boss' : 'stage', state.boss && state.boss.isEnraged);
+  }
+
+  if (state.current === 'GAMEOVER' || state.current === 'VICTORY') {
+    initGame();
+    return;
+  }
+
+  const touch = e.changedTouches[0];
+  canvasTouchId = touch.identifier;
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  playerStartX = player.x;
+  playerStartY = player.y;
+
+  // タッチした瞬間に1発発射
+  if (player.shotCooldown <= 0) {
+    shootPlayer();
+    player.shotCooldown = 8;
+  }
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  if (canvasTouchId === null) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    const touch = e.changedTouches[i];
+    if (touch.identifier === canvasTouchId) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = W / rect.width;
+      const scaleY = H / rect.height;
+      const dx = (touch.clientX - touchStartX) * scaleX;
+      const dy = (touch.clientY - touchStartY) * scaleY;
+
+      player.x = Math.max(10, Math.min(W - 40, playerStartX + dx));
+      player.y = Math.max(10, Math.min(H - player.h - 14, playerStartY + dy));
+      break;
+    }
+  }
+}, { passive: false });
+
+const endCanvasTouch = (e) => {
+  if (canvasTouchId === null) return;
+  for (let i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === canvasTouchId) {
+      canvasTouchId = null;
+      break;
+    }
+  }
+};
+window.addEventListener('touchend', endCanvasTouch, { passive: false });
+window.addEventListener('touchcancel', endCanvasTouch, { passive: false });
+
+// キャンバスクリックでゲームオーバーからリスタート
 canvas.addEventListener('click', () => {
   if (state.current === 'GAMEOVER' || state.current === 'VICTORY') {
     initGame();
   }
 });
-bindTouch('t-up', 'up');
-bindTouch('t-down', 'down');
-bindTouch('t-left', 'left');
-bindTouch('t-right', 'right');
-bindTouch('t-shot', 'shot', () => {
-  if (player.shotCooldown <= 0) {
-    shootPlayer();
-    player.shotCooldown = 8;
+
+// AUTO連射ボタン
+const autoBtn = document.getElementById('t-auto');
+function updateAutoBtnUI() {
+  if (!autoBtn) return;
+  if (player.autoFire) {
+    autoBtn.style.background = '#00d26a';
+    autoBtn.style.borderColor = '#00ff88';
+    autoBtn.style.color = '#fff';
+    autoBtn.innerHTML = 'AUTO<br>ON';
+  } else {
+    autoBtn.style.background = '#374151';
+    autoBtn.style.borderColor = '#6b7280';
+    autoBtn.style.color = '#9ca3af';
+    autoBtn.innerHTML = 'AUTO<br>OFF';
   }
-});
-bindTouch('t-power', 'power', () => activatePowerUp());
+}
+
+if (autoBtn) {
+  const toggleAuto = (e) => {
+    e.preventDefault();
+    audio.init();
+    player.autoFire = !player.autoFire;
+    updateAutoBtnUI();
+  };
+  autoBtn.addEventListener('touchstart', toggleAuto, { passive: false });
+  autoBtn.addEventListener('click', toggleAuto);
+}
+
+// SHOTボタン（手動連射/長押し）
+const shotBtn = document.getElementById('t-shot');
+if (shotBtn) {
+  const startShot = (e) => {
+    e.preventDefault();
+    audio.init();
+    keys.shot = true;
+    if (player.shotCooldown <= 0) {
+      shootPlayer();
+      player.shotCooldown = 8;
+    }
+  };
+  const endShot = (e) => {
+    e.preventDefault();
+    keys.shot = false;
+  };
+  shotBtn.addEventListener('touchstart', startShot, { passive: false });
+  shotBtn.addEventListener('touchend', endShot, { passive: false });
+  shotBtn.addEventListener('touchcancel', endShot, { passive: false });
+  shotBtn.addEventListener('mousedown', startShot);
+  shotBtn.addEventListener('mouseup', endShot);
+  shotBtn.addEventListener('mouseleave', endShot);
+}
+
+// POWER (X) ボタン（ゲージ発動）
+const powerBtn = document.getElementById('t-power');
+if (powerBtn) {
+  const doPower = (e) => {
+    e.preventDefault();
+    audio.init();
+    activatePowerUp();
+    powerBtn.classList.add('active');
+    setTimeout(() => powerBtn.classList.remove('active'), 120);
+  };
+  powerBtn.addEventListener('touchstart', doPower, { passive: false });
+  powerBtn.addEventListener('click', doPower);
+}
 
 const muteBtn = document.getElementById('muteBtn');
 muteBtn.addEventListener('click', () => {
@@ -591,6 +870,7 @@ const player = {
   lives: 5,
   shotLevel: 1,
   shotCooldown: 0,
+  autoFire: true,
   speedLevel: 0,
   missile: false,
   laser: false,
@@ -664,6 +944,7 @@ function initGame() {
   floatingTexts = [];
 
   updateGaugeUI();
+  updateAutoBtnUI();
   audio.playBGM('stage');
 }
 
@@ -1039,7 +1320,7 @@ function update() {
   if (keys.left && player.x > 10) player.x -= baseSpeed;
   if (keys.right && player.x < W - 40) player.x += baseSpeed;
 
-  if (keys.shot) {
+  if (keys.shot || player.autoFire) {
     if (player.shotCooldown <= 0) {
       shootPlayer();
       player.shotCooldown = 8;
@@ -2754,12 +3035,14 @@ function gameLoop() {
 initGame();
 gameLoop();
 
-window.addEventListener('click', () => {
-  audio.init();
-  if (!audio.currentTrack && !audio.muted && state.current === 'PLAY') {
-    audio.playBGM(state.boss ? 'boss' : 'stage', state.boss && state.boss.isEnraged);
-  }
-}, { once: true });
+['click', 'touchstart', 'pointerdown'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    audio.init();
+    if (!audio.currentTrack && !audio.muted && state.current === 'PLAY') {
+      audio.playBGM(state.boss ? 'boss' : 'stage', state.boss && state.boss.isEnraged);
+    }
+  }, { passive: true });
+});
 </script>
 </body>
 </html>

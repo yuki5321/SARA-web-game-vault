@@ -57,7 +57,18 @@ const structuredData = {
           <span aria-hidden="true">↗</span>
         </a>
       ) : (
-        <button id="reload-game" class="btn-outline-cafe cursor-pointer" type="button">↻ ゲームを再読み込み</button>
+        <div class="flex flex-wrap items-center gap-2">
+          <a
+            href={`/games/${game.id}/game.html`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-espresso !py-2 !px-4 text-xs font-bold sm:text-sm"
+          >
+            <span>⛶ 全画面で遊ぶ</span>
+            <span aria-hidden="true">↗</span>
+          </a>
+          <button id="reload-game" class="btn-outline-cafe cursor-pointer !py-2 !px-3.5 text-xs sm:text-sm" type="button">↻ 再読み込み</button>
+        </div>
       )}
     </header>
 
