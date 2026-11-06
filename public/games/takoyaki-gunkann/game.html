@@ -41,8 +41,7 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    body.is-iframe h1,
-    body.is-iframe .controls-hint {
+    body.is-iframe h1 {
       display: none !important;
     }
     .game-wrapper {
@@ -65,8 +64,8 @@
       background: #000;
       width: auto;
       height: auto;
-      max-width: min(580px, 96vw);
-      max-height: min(380px, 46dvh);
+      max-width: min(640px, 96vw);
+      max-height: min(480px, 72vh);
       aspect-ratio: 4 / 3;
       touch-action: none;
       cursor: crosshair;
@@ -110,19 +109,15 @@
       border-color: #00ffcc;
       color: #00ffcc;
     }
-    /* コントロール案内（PCのみ表示、スマホ・小画面では非表示にして画面圧迫を防止） */
+    /* コントロール案内（PCキーボード操作用） */
     .controls-hint {
       font-size: 11px;
       color: #bbb;
       text-align: center;
-      line-height: 1.4;
+      line-height: 1.45;
       max-width: 640px;
       flex-shrink: 0;
-    }
-    @media (max-width: 768px), (max-height: 620px) {
-      .controls-hint {
-        display: none;
-      }
+      margin: 2px 0;
     }
     .key-badge {
       background: #333;
@@ -154,11 +149,6 @@
       margin: 1px 0;
       letter-spacing: 0.5px;
       flex-shrink: 0;
-    }
-    @media (min-width: 769px) and (min-height: 621px) {
-      .touch-hint-bar {
-        display: none;
-      }
     }
     /* モバイル/タッチ操作ボタンパネル (常に画面下部に収まるレスポンシブ設計) */
     .touch-controls {
@@ -223,21 +213,106 @@
       text-align: center;
       touch-action: none;
     }
-    .mute-btn {
+    .top-bar-btns {
       position: absolute;
       top: 6px;
       right: 6px;
-      background: rgba(0,0,0,0.65);
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+    }
+    .hud-btn {
+      background: rgba(0,0,0,0.68);
       border: 1px solid #777;
       color: #fff;
-      padding: 3px 6px;
+      padding: 3px 7px;
       border-radius: 4px;
       cursor: pointer;
       font-size: 11px;
-      z-index: 10;
+      font-family: inherit;
+      font-weight: bold;
+      transition: all 0.15s;
     }
+    .hud-btn:hover {
+      background: rgba(30, 41, 59, 0.9);
+      border-color: #00f0ff;
+    }
+    .hud-btn.active {
+      background: #00d26a;
+      border-color: #00ff88;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+    }
+
+    /* ==========================================================================
+       PC/マウス操作用 vs スマホ/タッチ操作用 最適化切り替え
+       ========================================================================== */
+    /* PC環境（キーボード＆マウス操作） */
+    body.is-pc {
+      justify-content: center;
+      gap: 6px;
+    }
+    body.is-pc .touch-controls,
+    body.is-pc .touch-hint-bar {
+      display: none !important;
+    }
+    body.is-pc .controls-hint {
+      display: block !important;
+    }
+    body.is-pc canvas {
+      max-width: min(640px, 96vw);
+      max-height: min(480px, 72vh);
+    }
+    body.is-pc.is-iframe canvas {
+      max-width: min(640px, 96vw);
+      max-height: min(460px, 70vh);
+    }
+
+    /* スマホ・タッチ環境 */
+    body.is-touch .controls-hint {
+      display: none !important;
+    }
+    body.is-touch .touch-controls {
+      display: flex !important;
+    }
+    body.is-touch .touch-hint-bar {
+      display: block !important;
+    }
+    body.is-touch canvas {
+      max-width: min(580px, 96vw);
+      max-height: min(380px, 46dvh);
+    }
+
+    /* メディアクエリフォールバック (JS読み込み前でも破綻防止) */
+    @media (min-width: 769px) and (hover: hover) and (pointer: fine) {
+      body:not(.is-touch) {
+        justify-content: center;
+        gap: 6px;
+      }
+      body:not(.is-touch) .touch-controls,
+      body:not(.is-touch) .touch-hint-bar {
+        display: none !important;
+      }
+      body:not(.is-touch) .controls-hint {
+        display: block !important;
+      }
+      body:not(.is-touch) canvas {
+        max-width: min(640px, 96vw);
+        max-height: min(480px, 72vh);
+      }
+    }
+    @media (max-width: 768px), (pointer: coarse) {
+      .controls-hint {
+        display: none;
+      }
+      canvas {
+        max-width: min(580px, 96vw);
+        max-height: min(380px, 46dvh);
+      }
+    }
+
     /* 横向きスマホ対応（ゲームボーイ/Switch風に左右配置） */
-    @media (max-height: 520px) and (orientation: landscape) {
+    @media (max-height: 520px) and (orientation: landscape) and (pointer: coarse) {
       body {
         flex-direction: row;
         justify-content: space-around;
@@ -274,7 +349,10 @@
   <h1>★ PARODIUS MINI ★ (撃沈タイム＆ランク評価版)</h1>
 
   <div class="game-wrapper">
-    <button class="mute-btn" id="muteBtn">BGM: ON</button>
+    <div class="top-bar-btns">
+      <button class="hud-btn" id="autoStatusBtn" type="button">AUTO: OFF [C]</button>
+      <button class="hud-btn" id="muteBtn" type="button">BGM: ON</button>
+    </div>
     <canvas id="gameCanvas" width="320" height="240"></canvas>
 
     <!-- パワーアップメーター -->
@@ -289,9 +367,10 @@
 
   <div class="controls-hint">
     移動: <span class="key-badge">↑ ↓ ← →</span> / <span class="key-badge">WASD</span> |
-    ショット: <span class="key-badge">Space</span> or <span class="key-badge">Z</span> (<span class="rapid-badge">長押し自動連射</span>) |
-    ゲージ発動: <span class="key-badge">X</span> or <span class="key-badge">Shift</span><br>
-    <span class="rank-badge">新機能</span> ゲーム終了時に<strong>「○○秒で撃沈！」＆「ランク：ポンコツ」などのお笑い称号</strong>を判定表示！
+    ショット: <span class="key-badge">Space</span> or <span class="key-badge">Z</span> (<span class="rapid-badge">長押し連射</span>) |
+    ゲージ発動: <span class="key-badge">X</span> or <span class="key-badge">Shift</span> |
+    連射切替: <span class="key-badge">C</span><br>
+    <span class="rank-badge">称号機能</span> ゲーム終了時に<strong>「○○秒で撃沈！」＆「ランク：ポンコツ」などのお笑い称号</strong>を判定表示！
   </div>
 
   <div class="touch-hint-bar">👆 画面ドラッグ移動 ＆ AUTO自動連射 (下のボタンでも操作可能)</div>
@@ -319,6 +398,12 @@
   </div>
 
 <script>
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+if (isTouchDevice) {
+  document.body.classList.add('is-touch');
+} else {
+  document.body.classList.add('is-pc');
+}
 if (window.self !== window.top) {
   try { document.body.classList.add('is-iframe'); } catch(e) {}
 }
@@ -530,7 +615,7 @@ const keys = {
 
 window.addEventListener('keydown', e => {
   // ブラウザのスクロールや誤動作を防止（Spaceや矢印キーで画面が落ちていくバグを完全防止）
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyZ', 'KeyX'].includes(e.code)) {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyZ', 'KeyX', 'KeyC'].includes(e.code)) {
     e.preventDefault();
   }
 
@@ -557,6 +642,12 @@ window.addEventListener('keydown', e => {
     if (!keys.power) activatePowerUp();
     keys.power = true;
   }
+  // ★ CキーでAUTO連射ON/OFF切り替え！
+  if (e.code === 'KeyC') {
+    player.autoFire = !player.autoFire;
+    updateAutoBtnUI();
+    addFloatingText(player.x, player.y - 12, player.autoFire ? 'AUTO: ON' : 'AUTO: OFF', player.autoFire ? '#00ff88' : '#cbd5e1');
+  }
   // ★ Rキー、スペース、Enterキーでも快適にリスタート可能！
   if (['KeyR', 'Space', 'Enter'].includes(e.code) && (state.current === 'GAMEOVER' || state.current === 'VICTORY')) {
     initGame();
@@ -565,7 +656,7 @@ window.addEventListener('keydown', e => {
 });
 
 window.addEventListener('keyup', e => {
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyZ', 'KeyX'].includes(e.code)) {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyZ', 'KeyX', 'KeyC'].includes(e.code)) {
     e.preventDefault();
   }
   if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = false;
@@ -738,39 +829,66 @@ const endCanvasTouch = (e) => {
 window.addEventListener('touchend', endCanvasTouch, { passive: false });
 window.addEventListener('touchcancel', endCanvasTouch, { passive: false });
 
-// キャンバスクリックでゲームオーバーからリスタート
+// キャンバスクリックでフォーカス取得＆ゲームオーバーからリスタート
 canvas.addEventListener('click', () => {
+  try { window.focus(); } catch(e) {}
   if (state.current === 'GAMEOVER' || state.current === 'VICTORY') {
     initGame();
   }
 });
 
-// AUTO連射ボタン
+// AUTO連射ボタン (スマホ下部ボタン ＆ PC右上ボタン 連動)
 const autoBtn = document.getElementById('t-auto');
+const autoStatusBtn = document.getElementById('autoStatusBtn');
+
 function updateAutoBtnUI() {
-  if (!autoBtn) return;
-  if (player.autoFire) {
-    autoBtn.style.background = '#00d26a';
-    autoBtn.style.borderColor = '#00ff88';
-    autoBtn.style.color = '#fff';
-    autoBtn.innerHTML = 'AUTO<br>ON';
-  } else {
-    autoBtn.style.background = '#374151';
-    autoBtn.style.borderColor = '#6b7280';
-    autoBtn.style.color = '#9ca3af';
-    autoBtn.innerHTML = 'AUTO<br>OFF';
+  if (autoBtn) {
+    if (player.autoFire) {
+      autoBtn.style.background = '#00d26a';
+      autoBtn.style.borderColor = '#00ff88';
+      autoBtn.style.color = '#fff';
+      autoBtn.innerHTML = 'AUTO<br>ON';
+    } else {
+      autoBtn.style.background = '#374151';
+      autoBtn.style.borderColor = '#6b7280';
+      autoBtn.style.color = '#9ca3af';
+      autoBtn.innerHTML = 'AUTO<br>OFF';
+    }
+  }
+  if (autoStatusBtn) {
+    if (player.autoFire) {
+      autoStatusBtn.classList.add('active');
+      autoStatusBtn.innerText = 'AUTO: ON [C]';
+    } else {
+      autoStatusBtn.classList.remove('active');
+      autoStatusBtn.innerText = 'AUTO: OFF [C]';
+    }
   }
 }
 
+function toggleAutoFire() {
+  audio.init();
+  player.autoFire = !player.autoFire;
+  updateAutoBtnUI();
+  addFloatingText(player.x, player.y - 12, player.autoFire ? 'AUTO: ON' : 'AUTO: OFF', player.autoFire ? '#00ff88' : '#cbd5e1');
+}
+
 if (autoBtn) {
-  const toggleAuto = (e) => {
+  autoBtn.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    audio.init();
-    player.autoFire = !player.autoFire;
-    updateAutoBtnUI();
-  };
-  autoBtn.addEventListener('touchstart', toggleAuto, { passive: false });
-  autoBtn.addEventListener('click', toggleAuto);
+    toggleAutoFire();
+  }, { passive: false });
+  autoBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleAutoFire();
+  });
+}
+
+if (autoStatusBtn) {
+  autoStatusBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toggleAutoFire();
+  });
 }
 
 // SHOTボタン（手動連射/長押し）
@@ -870,7 +988,7 @@ const player = {
   lives: 5,
   shotLevel: 1,
   shotCooldown: 0,
-  autoFire: true,
+  autoFire: isTouchDevice, // スマホは最初からAUTO連射ON、PCは手動連射(長押し対応、CキーでAUTO切替)
   speedLevel: 0,
   missile: false,
   laser: false,
