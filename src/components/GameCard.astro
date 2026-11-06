@@ -2,37 +2,42 @@
 import type { Game } from "../lib/games";
 
 const { game, index = 0 } = Astro.props as { game: Game; index?: number };
-const menuNumber = String(index + 1).padStart(2, "0");
+const codeNumber = String(index + 1).padStart(2, "0");
 ---
 
-<article class="surface group relative flex flex-col overflow-hidden p-3 transition duration-300 hover:-translate-y-1 hover:border-[#C5B49E] hover:shadow-xl">
+<article class="surface group relative flex flex-col overflow-hidden p-3 transition duration-300 hover:-translate-y-1.5 hover:border-[#00F0FF]/60 hover:shadow-[0_0_30px_-5px_rgba(0,240,255,0.25)]">
   <a href={`/games/${game.id}`} class="flex h-full flex-col">
-    <div class="relative aspect-[4/3] overflow-hidden rounded-xl border border-[#E6DEC8]/70 bg-[#F3EFE6]">
+    <div class="relative aspect-[4/3] overflow-hidden rounded-lg border border-[#1E2438] bg-[#090B12]">
       {game.thumbnail ? (
-        <img src={game.thumbnail} alt="" loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+        <img src={game.thumbnail} alt="" loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]" />
       ) : (
-        <div class="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-[#F3EFE6] to-[#E6DEC8]/50 p-4 text-center" aria-hidden="true">
-          <span class="font-editorial text-3xl italic text-[#B86B4B]">SARA Blend</span>
-          <span class="text-xs font-bold tracking-widest text-[#6E5D53]">{game.tags[0]}</span>
+        <div class="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-[#0C0E16] to-[#161A29] p-4 text-center" aria-hidden="true">
+          <span class="font-cyber text-2xl font-bold tracking-widest text-[#00F0FF]">NOEL</span>
+          <span class="text-xs font-bold tracking-widest text-[#9CA3B8]">{game.tags[0]}</span>
         </div>
       )}
-      <span class="font-editorial absolute top-3 left-3 rounded-full border border-[#E6DEC8] bg-[#FBF9F5]/95 px-3 py-0.5 text-xs font-semibold italic tracking-widest text-[#2C221E] shadow-xs backdrop-blur-xs">
-        Signature
+      <span class="font-mono-tech absolute top-3 left-3 rounded-md border border-[#00F0FF]/40 bg-[#06070B]/90 px-2.5 py-0.5 text-[11px] font-bold tracking-widest text-[#00F0FF] backdrop-blur-md">
+        SYS.{codeNumber}
       </span>
+      {game.externalUrl && (
+        <span class="font-mono-tech absolute top-3 right-3 rounded-md border border-[#A855F7]/50 bg-[#06070B]/90 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[#A855F7] backdrop-blur-md">
+          EXTERNAL ↗
+        </span>
+      )}
     </div>
     <div class="flex flex-1 flex-col justify-between px-2 pt-4 pb-2">
       <div>
-        <div class="flex items-center justify-between gap-2 text-[11px] tracking-widest text-[#9C8B7E] uppercase">
-          <span>No. {menuNumber}</span>
+        <div class="font-mono-tech flex items-center justify-between gap-2 text-[11px] tracking-widest text-[#5D647A] uppercase">
+          <span>ARCADE // {codeNumber}</span>
           <span>{game.publishedAt.replaceAll("-", ".")}</span>
         </div>
-        <h3 class="mt-1.5 text-lg font-bold tracking-tight text-[#2C221E] transition group-hover:text-[#B86B4B]">{game.title}</h3>
-        <p class="mt-2 line-clamp-2 min-h-11 text-xs leading-relaxed text-[#6E5D53]">{game.description}</p>
+        <h3 class="mt-1.5 text-lg font-extrabold tracking-tight text-[#F4F6FB] transition group-hover:text-[#00F0FF]">{game.title}</h3>
+        <p class="mt-2 line-clamp-2 min-h-11 text-xs leading-relaxed text-[#9CA3B8]">{game.description}</p>
       </div>
-      <div class="mt-4 border-t border-dashed border-[#E6DEC8] pt-3">
+      <div class="mt-4 border-t border-[#1E2438] pt-3">
         <ul class="flex flex-wrap gap-1.5" aria-label="ジャンル">
           {game.tags.slice(0, 3).map((tag) => (
-            <li class="rounded-full bg-[#F3EFE6] px-2.5 py-0.5 text-[11px] font-medium text-[#6E5D53]">#{tag}</li>
+            <li class="rounded-md border border-[#1E2438] bg-[#0C0E16] px-2.5 py-0.5 text-[11px] font-semibold text-[#9CA3B8] transition group-hover:border-[#00F0FF]/30 group-hover:text-[#F4F6FB]">#{tag}</li>
           ))}
         </ul>
       </div>

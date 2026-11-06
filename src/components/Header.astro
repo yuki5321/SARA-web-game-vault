@@ -2,30 +2,22 @@
 const { gameCount } = Astro.props;
 ---
 
-<header class="sticky top-0 z-30 border-b border-[#E6DEC8] bg-[#FBF9F5]/90 backdrop-blur-md">
+<header class="sticky top-0 z-30 border-b border-[#1E2438] bg-[#06070B]/85 backdrop-blur-xl">
   <div class="page-shell flex min-h-20 items-center justify-between gap-4">
-    <a href="/" class="group flex items-center gap-3.5 text-[#2C221E]" aria-label="SARA Game Park ホーム">
-      <span class="font-editorial grid size-10 place-items-center rounded-full border border-[#2C221E] bg-[#2C221E] text-xl italic text-[#FBF9F5] transition group-hover:bg-[#B86B4B] group-hover:border-[#B86B4B]" aria-hidden="true">S</span>
+    <a href="/" class="group flex items-center gap-3.5 text-[#F4F6FB]" aria-label="Noel ホーム">
+      <span class="font-cyber relative grid size-10 place-items-center rounded-xl border border-[#00F0FF]/50 bg-[#0C0E16] text-lg font-black text-[#00F0FF] shadow-[0_0_15px_rgba(0,240,255,0.25)] transition group-hover:border-[#00F0FF] group-hover:bg-[#00F0FF] group-hover:text-[#06070B]" aria-hidden="true">
+        N
+      </span>
       <div class="flex flex-col">
-        <span class="font-editorial text-2xl font-semibold tracking-wider leading-none">SARA Game Park</span>
-        <span class="mt-0.5 text-[10px] tracking-[0.22em] text-[#9C8B7E] uppercase">Playful Blend &amp; Arcade</span>
+        <span class="font-cyber text-2xl font-extrabold tracking-widest leading-none text-white">NOEL</span>
+        <span class="font-mono-tech mt-1 text-[10px] tracking-[0.25em] text-[#00F0FF]/80 uppercase">Cyber Arcade Portal</span>
       </div>
     </a>
-    <nav class="flex items-center gap-3 sm:gap-5 text-sm font-medium text-[#6E5D53]" aria-label="メインナビゲーション">
-      <a class="hidden transition hover:text-[#2C221E] sm:inline" href="/#games">Menu / ゲーム一覧</a>
-      <a
-        href="https://linktr.ee/sara_wallpaper68"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="inline-flex items-center gap-1.5 rounded-full border border-[#C5B49E] bg-[#FFFFFF] px-3.5 py-1.5 text-xs font-bold tracking-wider text-[#2C221E] shadow-2xs transition hover:border-[#2C221E] hover:bg-[#2C221E] hover:text-[#FBF9F5]"
-      >
-        <span class="font-editorial italic text-[#B86B4B]">✦</span>
-        <span>SARA Links</span>
-        <span aria-hidden="true" class="text-[10px] opacity-70">↗</span>
-      </a>
-      <span class="cafe-pill hidden md:inline-flex">
-        <span class="size-1.5 rounded-full bg-[#B86B4B]"></span>
-        <span>Today's Blend: {gameCount}</span>
+    <nav class="flex items-center gap-4 sm:gap-6 text-sm font-semibold text-[#9CA3B8]" aria-label="メインナビゲーション">
+      <a class="font-cyber text-xs tracking-widest uppercase transition hover:text-[#00F0FF]" href="/#games">Games</a>
+      <span class="cyber-pill">
+        <span class="size-2 rounded-full bg-[#00F0FF] shadow-[0_0_8px_#00F0FF]"></span>
+        <span class="font-mono-tech text-xs text-[#F4F6FB]">ONLINE: {gameCount}</span>
       </span>
     </nav>
   </div>
