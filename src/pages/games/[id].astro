@@ -96,12 +96,12 @@ const structuredData = {
         </div>
       </div>
     ) : (
-      <div class={`mx-auto mt-8 w-full ${game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl"}`}>
-        <div class="surface-cyber overflow-hidden p-2 sm:p-3" style={`--game-aspect: ${game.aspectRatio}`}>
+      <div class={`mx-auto mt-8 w-full ${game.id === 'takoyaki-gunkann' ? 'max-w-md md:max-w-4xl' : (game.orientation === "portrait" ? "max-w-lg" : "max-w-4xl")}`}>
+        <div class="surface-cyber overflow-hidden p-2 sm:p-3" style={game.id !== 'takoyaki-gunkann' ? `--game-aspect: ${game.aspectRatio}` : undefined}>
           <div class="overflow-hidden rounded-xl border border-[#1E2438]">
             <iframe
               id="game-frame"
-              class="game-frame"
+              class={`game-frame ${game.id === 'takoyaki-gunkann' ? 'game-frame-hybrid' : ''}`}
               title={`${game.title} ゲーム画面`}
               src={`/games/${game.id}/game.html`}
               allow="fullscreen"
