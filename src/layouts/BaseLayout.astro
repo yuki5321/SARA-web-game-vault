@@ -38,5 +38,174 @@ const canonical = Astro.site ? new URL(normalizedCanonicalPath, Astro.site) : un
     <Header gameCount={gameCount} />
     <main class="flex-1"><slot /></main>
     <Footer />
+    <script>
+      const STORAGE_KEY = "noel_arcade_stats_v1";
+      const SESSION_VISIT_KEY = "noel_session_visited_v1";
+
+      const BASE_STATS: { total: number; games: Record<string, number> } = {
+        total: 1240,
+        games: {
+          "salada-da": 186,
+          "cat-vs-alien-mice": 243,
+          "takoyaki-gunkann": 215,
+          "sara-flappy-angel": 178,
+          "pantsman": 312,
+        },
+      };
+
+      function loadLocalStats(): { total: number; games: Record<string, number> } {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            const mergedGames: Record<string, number> = { ...BASE_STATS.games };
+            if (parsed?.games && typeof parsed.games === "object") {
+              for (const [k, v] of Object.entries(parsed.games)) {
+                mergedGames[k] = Math.max(mergedGames[k] ?? 100, Number(v) || 0);
+              }
+            }
+            return {
+              total: Math.max(BASE_STATS.total, Number(parsed?.total) || 0),
+              games: mergedGames,
+            };
+          }
+        } catch {
+          // Ignore storage error
+        }
+        return { total: BASE_STATS.total, games: { ...BASE_STATS.games } };
+      }
+
+      function saveLocalStats(stats: { total: number; games: Record<string, number> }) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+        } catch {
+          // Ignore storage error
+        }
+      }
+
+      function mergeStats(
+        a: { total: number; games: Record<string, number> },
+        b: { total?: number; games?: Record<string, number> }
+      ) {
+        const mergedGames: Record<string, number> = { ...a.games };
+        if (b?.games && typeof b.games === "object") {
+          for (const [k, v] of Object.entries(b.games)) {
+            mergedGames[k] = Math.max(mergedGames[k] ?? 100, Number(v) || 0);
+          }
+        }
+        return {
+          total: Math.max(a.total, Number(b?.total) || 0),
+          games: mergedGames,
+        };
+      }
+
+      function renderStats(stats: { total: number; games: Record<string, number> }) {
+        document.querySelectorAll<HTMLElement>("[data-total-access]").forEach((el) => {
+          el.textContent = stats.total.toLocaleString("ja-JP");
+        });
+        document.querySelectorAll<HTMLElement>("[data-play-count]").forEach((el) => {
+          const id = el.dataset.playCount;
+          if (id) {
+            const count = stats.games[id] ?? 100;
+            el.textContent = count.toLocaleString("ja-JP");
+          }
+        });
+      }
+
+      async function postEvent(payload: { type: "visit" | "play"; gameId?: string }, currentStats: { total: number; games: Record<string, number> }) {
+        try {
+          const res = await fetch("/api/stats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (res.ok) {
+            const serverStats = await res.json();
+            const merged = mergeStats(currentStats, serverStats);
+            saveLocalStats(merged);
+            renderStats(merged);
+            return merged;
+          }
+        } catch {
+          // Offline or static preview fallback
+        }
+        return currentStats;
+      }
+
+      async function initStats() {
+        let stats = loadLocalStats();
+
+        // Check if this is a new session visit
+        let isNewVisit = false;
+        try {
+          if (!sessionStorage.getItem(SESSION_VISIT_KEY)) {
+            sessionStorage.setItem(SESSION_VISIT_KEY, "1");
+            isNewVisit = true;
+            stats.total += 1;
+          }
+        } catch {
+          // Ignore sessionStorage error
+        }
+
+        // Check if user opened a game page
+        const gameArticle = document.querySelector<HTMLElement>("[data-game-page-id]");
+        const activeGameId = gameArticle?.dataset.gamePageId;
+        if (activeGameId) {
+          const playKey = `noel_played_${activeGameId}`;
+          let shouldIncrementPlay = true;
+          try {
+            if (sessionStorage.getItem(playKey)) {
+              shouldIncrementPlay = false;
+            } else {
+              sessionStorage.setItem(playKey, "1");
+            }
+          } catch {
+            // Ignore
+          }
+          if (shouldIncrementPlay) {
+            stats.games[activeGameId] = (stats.games[activeGameId] ?? 100) + 1;
+            stats.total += isNewVisit ? 0 : 1;
+          }
+        }
+
+        saveLocalStats(stats);
+        renderStats(stats);
+
+        // Sync with Cloudflare Edge Function
+        try {
+          if (isNewVisit) {
+            stats = await postEvent({ type: "visit" }, stats);
+          }
+          if (activeGameId) {
+            stats = await postEvent({ type: "play", gameId: activeGameId }, stats);
+          }
+          if (!isNewVisit && !activeGameId) {
+            const res = await fetch("/api/stats");
+            if (res.ok) {
+              const serverStats = await res.json();
+              stats = mergeStats(stats, serverStats);
+              saveLocalStats(stats);
+              renderStats(stats);
+            }
+          }
+        } catch {
+          // Ignore network errors
+        }
+
+        // Handle external game launch clicks
+        document.querySelectorAll<HTMLElement>("[data-external-play]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const gameId = btn.dataset.externalPlay;
+            if (!gameId) return;
+            stats.games[gameId] = (stats.games[gameId] ?? 100) + 1;
+            saveLocalStats(stats);
+            renderStats(stats);
+            postEvent({ type: "play", gameId }, stats);
+          });
+        });
+      }
+
+      initStats();
+    </script>
   </body>
 </html>

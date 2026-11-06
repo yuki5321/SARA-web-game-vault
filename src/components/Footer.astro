@@ -1,13 +1,32 @@
 <footer class="mt-20 border-t border-[#1E2438] bg-[#090B12]">
-  <div class="page-shell flex flex-col gap-6 py-12 text-sm text-[#9CA3B8] sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <p class="font-cyber text-lg font-extrabold tracking-widest text-[#F4F6FB]">NOEL</p>
-      <p class="font-mono-tech mt-1 text-xs tracking-wider text-[#5D647A]">© {new Date().getFullYear()} NOEL · NEXT-GEN BROWSER ARCADE.</p>
+  <div class="page-shell py-10 text-sm text-[#9CA3B8]">
+    <!-- Total Access Counter Bar -->
+    <div class="mb-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-[#1E2438] bg-[#0C0E16]/90 px-6 py-4 sm:flex-row">
+      <div class="flex items-center gap-3">
+        <span class="size-2.5 rounded-full bg-[#00F0FF] shadow-[0_0_10px_#00F0FF]" aria-hidden="true"></span>
+        <div>
+          <p class="font-mono-tech text-[11px] font-bold tracking-[0.2em] text-[#00F0FF] uppercase">// TOTAL ACCESS COUNTER</p>
+          <p class="text-xs text-[#9CA3B8]">サイト全体の累計アクセス数</p>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2 rounded-xl border border-[#00F0FF]/35 bg-[#06070B] px-5 py-2 shadow-[inset_0_0_16px_rgba(0,240,255,0.08)]">
+        <span class="font-cyber text-2xl font-black tracking-widest text-[#00F0FF] drop-shadow-[0_0_10px_rgba(0,240,255,0.45)] sm:text-3xl" data-total-access>
+          ---
+        </span>
+        <span class="font-mono-tech text-xs font-bold tracking-widest text-[#9CA3B8]">ACCESS</span>
+      </div>
     </div>
-    <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium tracking-wider" aria-label="フッターナビゲーション">
-      <a class="transition hover:text-[#00F0FF]" href="/privacy">プライバシーポリシー</a>
-      <a class="transition hover:text-[#00F0FF]" href="/contact">お問い合わせ</a>
-      <a class="transition hover:text-[#00F0FF]" href="/#disclaimer">免責事項</a>
-    </nav>
+
+    <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p class="font-cyber text-lg font-extrabold tracking-widest text-[#F4F6FB]">NOEL</p>
+        <p class="font-mono-tech mt-1 text-xs tracking-wider text-[#5D647A]">© {new Date().getFullYear()} NOEL · NEXT-GEN BROWSER ARCADE.</p>
+      </div>
+      <nav class="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium tracking-wider" aria-label="フッターナビゲーション">
+        <a class="transition hover:text-[#00F0FF]" href="/privacy">プライバシーポリシー</a>
+        <a class="transition hover:text-[#00F0FF]" href="/contact">お問い合わせ</a>
+        <a class="transition hover:text-[#00F0FF]" href="/#disclaimer">免責事項</a>
+      </nav>
+    </div>
   </div>
 </footer>

@@ -47,6 +47,12 @@ const codeNumber = String(index + 1).padStart(2, "0");
         <p class="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#9CA3B8]">
           {game.description}
         </p>
+        <div class="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#00F0FF]/25 bg-[#00F0FF]/6 px-2.5 py-1 text-[11px] font-medium text-[#9CA3B8]">
+          <span class="size-1.5 rounded-full bg-[#00F0FF] shadow-[0_0_6px_#00F0FF]" aria-hidden="true"></span>
+          <span>
+            <strong class="font-mono-tech font-bold text-[#00F0FF]" data-play-count={game.id}>---</strong>人が遊びました
+          </span>
+        </div>
       </div>
 
       <!-- Card Footer: Tags & PLAY CTA -->

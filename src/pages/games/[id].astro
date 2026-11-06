@@ -36,14 +36,20 @@ const structuredData = {
 
 <BaseLayout title={game.title} description={description} gameCount={games.length} canonicalPath={`/games/${game.id}`}>
   <script type="application/ld+json" set:html={JSON.stringify(structuredData).replace(/</g, "\\u003c")} />
-  <article class="page-shell py-8 sm:py-12">
+  <article class="page-shell py-8 sm:py-12" data-game-page-id={game.id}>
     <a href="/#games" class="font-mono-tech inline-flex items-center gap-2 text-xs font-bold tracking-wider text-[#9CA3B8] transition hover:text-[#00F0FF]">
       <span aria-hidden="true">←</span>
       <span>BACK TO ARCADE COLLECTION</span>
     </a>
     <header class="mt-5 flex flex-wrap items-end justify-between gap-4 border-b border-[#1E2438] pb-5">
       <div>
-        <p class="eyebrow">{game.tags.map((t) => `#${t}`).join("  ")}</p>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <p class="eyebrow">{game.tags.map((t) => `#${t}`).join("  ")}</p>
+          <span class="inline-flex items-center gap-1.5 rounded-md border border-[#00F0FF]/30 bg-[#00F0FF]/8 px-2.5 py-0.5 text-xs font-medium text-[#9CA3B8]">
+            <span class="size-1.5 rounded-full bg-[#00F0FF] shadow-[0_0_6px_#00F0FF]" aria-hidden="true"></span>
+            <span><strong class="font-mono-tech font-bold text-[#00F0FF]" data-play-count={game.id}>---</strong>人が遊びました</span>
+          </span>
+        </div>
         <h1 class="mt-1.5 text-2xl font-black text-[#F4F6FB] sm:text-3xl">{game.title}</h1>
       </div>
       {game.externalUrl ? (
@@ -52,6 +58,7 @@ const structuredData = {
           target="_blank"
           rel="noopener noreferrer"
           class="btn-neon"
+          data-external-play={game.id}
         >
           <span>専用ページで遊ぶ</span>
           <span aria-hidden="true">↗</span>
@@ -87,6 +94,7 @@ const structuredData = {
                 target="_blank"
                 rel="noopener noreferrer"
                 class="btn-neon mt-5"
+                data-external-play={game.id}
               >
                 <span>▶ ゲームを起動する（特設サイトを開く）</span>
                 <span aria-hidden="true">↗</span>
