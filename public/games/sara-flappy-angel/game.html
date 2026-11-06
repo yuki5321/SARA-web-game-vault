@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SARA's ふわふわ星空さんぽ（Flappy Angel）</title>
+  <title>Noel's ふわふわ星空さんぽ（Flappy Angel）</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&family=Quicksand:wght@600;700;800&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
@@ -712,7 +712,7 @@
 
       <!-- スタート画面 -->
       <div id="start-screen">
-        <div class="title-ribbon">✦ SARA's DREAM WORLD ✦</div>
+        <div class="title-ribbon">✦ Noel's DREAM WORLD ✦</div>
         <h1 class="main-title">ふわふわ星空さんぽ</h1>
         <div class="sub-title">~ Flappy Angel ~</div>
 
@@ -1096,7 +1096,7 @@
 
     let gameState = STATE_START;
     let score = 0;
-    let highScore = parseInt(localStorage.getItem('sara_flappy_highscore') || '0', 10);
+    let highScore = parseInt(localStorage.getItem('noel_flappy_highscore') || localStorage.getItem('sara_flappy_highscore') || '0', 10);
 
     // 主人公「羽の生えた白うさぎ」オブジェクト
     const bunny = {
@@ -1686,7 +1686,7 @@
       let isNewRecord = false;
       if (score > highScore) {
         highScore = score;
-        localStorage.setItem('sara_flappy_highscore', highScore);
+        localStorage.setItem('noel_flappy_highscore', highScore);
         isNewRecord = true;
       }
 
@@ -1923,7 +1923,7 @@
 
     function getShareText() {
       const rank = getRank(score);
-      return `【SARA's ふわふわ星空さんぽ】\n✨ スコア: ${score}点！\n🪽 称号: ${rank.rankEn}（${rank.rankJp}）\n${rank.comment}\n#SARAふわふわ星空さんぽ #FlappyAngel #Webゲーム`;
+      return `【Noel's ふわふわ星空さんぽ】\n✨ スコア: ${score}点！\n🪽 称号: ${rank.rankEn}（${rank.rankJp}）\n${rank.comment}\n#Noelふわふわ星空さんぽ #FlappyAngel #Webゲーム`;
     }
 
     shareBtn.addEventListener('click', (e) => {
