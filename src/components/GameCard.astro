@@ -5,41 +5,64 @@ const { game, index = 0 } = Astro.props as { game: Game; index?: number };
 const codeNumber = String(index + 1).padStart(2, "0");
 ---
 
-<article class="surface group relative flex flex-col overflow-hidden p-3 transition duration-300 hover:-translate-y-1.5 hover:border-[#00F0FF]/60 hover:shadow-[0_0_30px_-5px_rgba(0,240,255,0.25)]">
-  <a href={`/games/${game.id}`} class="flex h-full flex-col">
-    <div class="relative aspect-[4/3] overflow-hidden rounded-lg border border-[#1E2438] bg-[#090B12]">
+<article class="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[#1E2438] bg-[#0C0E16]/90 transition duration-300 ease-out hover:-translate-y-1 hover:border-[#00F0FF]/55 hover:shadow-[0_14px_34px_-10px_rgba(0,0,0,0.85),0_0_20px_-4px_rgba(0,240,255,0.22)]">
+  <a href={`/games/${game.id}`} class="flex h-full flex-col focus:outline-none">
+    <!-- Thumbnail Header (Image-first Hero Area) -->
+    <div class="relative aspect-[4/3] w-full overflow-hidden border-b border-[#1E2438]/80 bg-[#06070B]">
       {game.thumbnail ? (
-        <img src={game.thumbnail} alt="" loading="lazy" class="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]" />
+        <img
+          src={game.thumbnail}
+          alt={game.title}
+          loading="lazy"
+          class="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.03]"
+        />
       ) : (
-        <div class="flex h-full flex-col items-center justify-center gap-1 bg-gradient-to-br from-[#0C0E16] to-[#161A29] p-4 text-center" aria-hidden="true">
+        <div class="flex h-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-[#0C0E16] to-[#161A29] p-4 text-center" aria-hidden="true">
           <span class="font-cyber text-2xl font-bold tracking-widest text-[#00F0FF]">NOEL</span>
           <span class="text-xs font-bold tracking-widest text-[#9CA3B8]">{game.tags[0]}</span>
         </div>
       )}
-      <span class="font-mono-tech absolute top-3 left-3 rounded-md border border-[#00F0FF]/40 bg-[#06070B]/90 px-2.5 py-0.5 text-[11px] font-bold tracking-widest text-[#00F0FF] backdrop-blur-md">
-        SYS.{codeNumber}
+
+      <!-- Subtle bottom vignette for depth -->
+      <div class="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0C0E16]/80 to-transparent"></div>
+
+      <!-- Top-left index badge -->
+      <span class="font-mono-tech absolute top-3 left-3 rounded-md border border-[#1E2438] bg-[#06070B]/85 px-2.5 py-0.5 text-[11px] font-bold tracking-widest text-[#00F0FF] backdrop-blur-md transition group-hover:border-[#00F0FF]/40">
+        #{codeNumber}
       </span>
+
       {game.externalUrl && (
-        <span class="font-mono-tech absolute top-3 right-3 rounded-md border border-[#A855F7]/50 bg-[#06070B]/90 px-2 py-0.5 text-[10px] font-bold tracking-wider text-[#A855F7] backdrop-blur-md">
-          EXTERNAL ↗
+        <span class="font-mono-tech absolute top-3 right-3 rounded-md border border-[#A855F7]/40 bg-[#06070B]/85 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-[#C084FC] backdrop-blur-md">
+          WEB APP ↗
         </span>
       )}
     </div>
-    <div class="flex flex-1 flex-col justify-between px-2 pt-4 pb-2">
+
+    <!-- Card Body -->
+    <div class="flex flex-1 flex-col justify-between p-5">
       <div>
-        <div class="font-mono-tech flex items-center justify-between gap-2 text-[11px] tracking-widest text-[#5D647A] uppercase">
-          <span>ARCADE // {codeNumber}</span>
-          <span>{game.publishedAt.replaceAll("-", ".")}</span>
-        </div>
-        <h3 class="mt-1.5 text-lg font-extrabold tracking-tight text-[#F4F6FB] transition group-hover:text-[#00F0FF]">{game.title}</h3>
-        <p class="mt-2 line-clamp-2 min-h-11 text-xs leading-relaxed text-[#9CA3B8]">{game.description}</p>
+        <h3 class="text-lg font-extrabold leading-snug tracking-tight text-[#F4F6FB] transition duration-200 group-hover:text-[#00F0FF]">
+          {game.title}
+        </h3>
+        <p class="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-[#9CA3B8]">
+          {game.description}
+        </p>
       </div>
-      <div class="mt-4 border-t border-[#1E2438] pt-3">
-        <ul class="flex flex-wrap gap-1.5" aria-label="ジャンル">
-          {game.tags.slice(0, 3).map((tag) => (
-            <li class="rounded-md border border-[#1E2438] bg-[#0C0E16] px-2.5 py-0.5 text-[11px] font-semibold text-[#9CA3B8] transition group-hover:border-[#00F0FF]/30 group-hover:text-[#F4F6FB]">#{tag}</li>
+
+      <!-- Card Footer: Tags & PLAY CTA -->
+      <div class="mt-5 flex items-center justify-between gap-3 border-t border-[#1E2438]/80 pt-3.5">
+        <ul class="flex flex-wrap items-center gap-1.5" aria-label="カテゴリー">
+          {game.tags.slice(0, 2).map((tag) => (
+            <li class="rounded-md border border-[#1E2438] bg-[#111420] px-2 py-0.5 text-[11px] font-medium text-[#9CA3B8]">
+              #{tag}
+            </li>
           ))}
         </ul>
+
+        <span class="font-cyber inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#00F0FF]/45 bg-[#00F0FF]/10 px-3.5 py-1.5 text-xs font-bold tracking-wider text-[#00F0FF] transition duration-200 group-hover:border-[#00F0FF] group-hover:bg-[#00F0FF] group-hover:text-[#06070B] group-hover:shadow-[0_0_14px_rgba(0,240,255,0.4)]">
+          <span>PLAY</span>
+          <span aria-hidden="true" class="text-[10px]">▶</span>
+        </span>
       </div>
     </div>
   </a>

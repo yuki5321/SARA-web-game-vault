@@ -5,6 +5,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { getGames } from "../lib/games";
 
 const games = getGames();
+const formattedGameCount = String(games.length).padStart(2, "0");
 const tags = [...new Set(games.flatMap((game) => game.tags))].sort((a, b) => a.localeCompare(b, "ja"));
 const description = "Noel（ノエル）は、インストール不要でブラウザから即座にプレイできる次世代Webゲームポータル。アクション・シューティング・タイピングなど多彩なゲームをPC・スマホで楽しめます。";
 ---
@@ -52,18 +53,41 @@ const description = "Noel（ノエル）は、インストール不要でブラ�
     <div class="mt-6"><AdBanner placement="トップページ上部" /></div>
   </section>
 
-  <section id="games" class="page-shell py-14">
-    <div class="flex flex-col gap-5 border-b border-[#1E2438] pb-6 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p class="eyebrow">// Arcade Lineup</p>
-        <h2 class="mt-1 text-2xl font-black tracking-tight text-[#F4F6FB] sm:text-3xl">
-          ゲーム一覧 <span class="font-mono-tech ml-1 text-lg font-semibold text-[#00F0FF]">[{games.length}]</span>
-        </h2>
+  <section id="games" class="page-shell py-14 sm:py-16">
+    <div class="border-b border-[#1E2438] pb-7">
+      <div class="flex flex-col gap-2">
+        <p class="eyebrow">// EXPLORE THE ARCADE</p>
+        <div class="mt-1 flex flex-wrap items-baseline gap-3">
+          <h2 class="font-cyber text-3xl font-extrabold tracking-wider text-[#F4F6FB] sm:text-4xl">
+            ARCADE COLLECTION
+          </h2>
+          <span class="font-mono-tech text-base font-bold tracking-widest text-[#00F0FF] sm:text-lg">
+            [{formattedGameCount}]
+          </span>
+        </div>
+        <p class="mt-1.5 text-sm leading-relaxed text-[#9CA3B8]">
+          お気に入りのゲームを見つけよう。次のプレイが、ここから始まる。
+        </p>
       </div>
-      <div class="flex flex-wrap gap-2" role="group" aria-label="ジャンルで絞り込む">
-        <button class="tag-filter cursor-pointer rounded-lg border border-[#00F0FF] bg-[#00F0FF] px-4 py-1.5 text-xs font-extrabold tracking-wider text-[#06070B] shadow-[0_0_15px_rgba(0,240,255,0.4)] transition" type="button" data-tag="all" aria-pressed="true">ALL</button>
+
+      <div class="mt-6 flex flex-wrap items-center gap-2.5" role="group" aria-label="カテゴリーで絞り込む">
+        <button
+          class="tag-filter inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#00F0FF] bg-[#00F0FF] px-4 text-xs font-extrabold tracking-wider text-[#06070B] shadow-[0_0_14px_rgba(0,240,255,0.3)] transition duration-200 hover:shadow-[0_0_18px_rgba(0,240,255,0.45)]"
+          type="button"
+          data-tag="all"
+          aria-pressed="true"
+        >
+          ALL
+        </button>
         {tags.map((tag) => (
-          <button class="tag-filter cursor-pointer rounded-lg border border-[#1E2438] bg-[#111420] px-4 py-1.5 text-xs font-semibold text-[#9CA3B8] transition hover:border-[#00F0FF]/60 hover:text-[#F4F6FB]" type="button" data-tag={tag} aria-pressed="false">#{tag}</button>
+          <button
+            class="tag-filter inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#1E2438] bg-[#0C0E16]/90 px-4 text-xs font-semibold tracking-wide text-[#9CA3B8] transition duration-200 hover:border-[#00F0FF]/50 hover:text-[#F4F6FB] hover:shadow-[0_0_12px_rgba(0,240,255,0.15)]"
+            type="button"
+            data-tag={tag}
+            aria-pressed="false"
+          >
+            #{tag}
+          </button>
         ))}
       </div>
     </div>
@@ -114,10 +138,12 @@ const description = "Noel（ノエル）は、インストール不要でブラ�
         button.classList.toggle("bg-[#00F0FF]", active);
         button.classList.toggle("border-[#00F0FF]", active);
         button.classList.toggle("text-[#06070B]", active);
-        button.classList.toggle("shadow-[0_0_15px_rgba(0,240,255,0.4)]", active);
-        button.classList.toggle("bg-[#111420]", !active);
+        button.classList.toggle("font-extrabold", active);
+        button.classList.toggle("shadow-[0_0_14px_rgba(0,240,255,0.3)]", active);
+        button.classList.toggle("bg-[#0C0E16]/90", !active);
         button.classList.toggle("border-[#1E2438]", !active);
         button.classList.toggle("text-[#9CA3B8]", !active);
+        button.classList.toggle("font-semibold", !active);
       });
       emptyMessage?.classList.toggle("hidden", visibleCount > 0);
     });
