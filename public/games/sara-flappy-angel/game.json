@@ -9,5 +9,6 @@
   "orientation": "portrait",
   "aspectRatio": "9/16",
   "publishedAt": "2026-10-17",
-  "thumbnail": "/games/sara-flappy-angel/thumbnail.png"
+  "thumbnail": "/games/sara-flappy-angel/thumbnail.png",
+  "externalUrl": "https://flappyangel16.netlify.app"
 }
