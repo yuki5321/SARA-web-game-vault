@@ -9,5 +9,6 @@
   "orientation": "portrait",
   "aspectRatio": "2/3",
   "publishedAt": "2026-10-17",
-  "thumbnail": "/games/takoyaki-gunkann/thumbnail.png"
+  "thumbnail": "/games/takoyaki-gunkann/thumbnail.png",
+  "externalUrl": "https://takoyakigunkan.netlify.app"
 }
