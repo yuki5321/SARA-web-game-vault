@@ -87,7 +87,9 @@ const structuredData = {
                 {game.title}
               </h2>
               <p class="mt-2 max-w-lg text-xs leading-relaxed text-[#9CA3B8] sm:text-sm">
-                このゲームはオンラインランキング＆物理キーボード対応の専用特設サイトで公開されています。下のボタンから全画面で快適にお楽しみください！
+                {game.id === "salada-da"
+                  ? "このゲームはオンラインランキング＆物理キーボード対応の専用特設サイトで公開されています。下のボタンから全画面で快適にお楽しみください！"
+                  : "このゲームは専用特設サイトで公開されています。下のボタンから全画面で快適にお楽しみください！"}
               </p>
               <a
                 href={game.externalUrl}

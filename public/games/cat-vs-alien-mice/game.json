@@ -9,5 +9,6 @@
   "orientation": "landscape",
   "aspectRatio": "4/3",
   "publishedAt": "2026-10-17",
-  "thumbnail": "/games/cat-vs-alien-mice/thumbnail.png"
+  "thumbnail": "/games/cat-vs-alien-mice/thumbnail.png",
+  "externalUrl": "https://noelvesperspacecat.netlify.app/"
 }
